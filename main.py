@@ -12,6 +12,8 @@ MENU_OPTIONS = [
     "Mostrar transações pendentes",
     "Criar bloco",
     "Mostrar blockchain",
+    "Validar blockchain",
+    "Simular adulteração",
 ]
 EXIT_OPTION = len(MENU_OPTIONS) + 1
 
@@ -185,7 +187,70 @@ def main():
                             )
 
                         print("-------------------------------")
-            else:       # Invalid option
+            elif choice == 5:
+                print("Entrando em Validar blockchain...")
+                if blockchain == []:
+                    print("A blockchain ainda está vazia!!")
+                else:
+                    problems = validate_chain(blockchain)
+                    if problems == []:
+                        print("Blockchain válida.")
+                    else:
+                        print("Blockchain inválida! Problemas encontrados:")
+                        for problem in problems:
+                            print(f"- {problem}")
+            elif choice == 6:
+                print("Entrando em Simular adulteração...")
+                if blockchain == []:
+                    print("A blockchain ainda está vazia!!")
+                    continue
+
+                try:
+                    block_position = int(input("Número do bloco: "))
+                except ValueError:
+                    print("Bloco inválido.")
+                    continue
+                if block_position < 0 or block_position >= len(blockchain):
+                    print("Bloco inválido.")
+                    continue
+
+                for number, transaction in enumerate(blockchain[block_position][1], start=1):
+                    print(
+                        f"{number} - {transaction[0]} -> "
+                        f"{transaction[1]}: {transaction[2]:.2f}"
+                    )
+
+                try:
+                    transaction_number = int(input("Número da transação: "))
+                except ValueError:
+                    print("Transação inválida.")
+                    continue
+                if (transaction_number < 1
+                        or transaction_number > len(blockchain[block_position][1])):
+                    print("Transação inválida.")
+                    continue
+
+                try:
+                    new_amount = float(input("Novo valor: "))
+                except ValueError:
+                    print("Valor inválido. Digite um número.")
+                    continue
+                if not math.isfinite(new_amount):
+                    print("Valor inválido. Digite um número.")
+                    continue
+
+                answer = input("Recalcular o hash do bloco? (s/n): ")
+                recalculate_hash = answer.strip().lower() == "s"
+
+                blockchain = tamper_block(
+                    blockchain, block_position, transaction_number - 1,
+                    new_amount, recalculate_hash,
+                )
+                print(
+                    f"Bloco {block_position} adulterado. "
+                    f"Use a opção 5 para validar a blockchain."
+                )
+            else:      # Invalid option
                 print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
     except (KeyboardInterrupt, EOFError):
         print("\nfinalizando...")
