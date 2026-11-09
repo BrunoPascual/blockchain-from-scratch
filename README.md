@@ -1,6 +1,6 @@
 # Blockchain From Scratch
 
-A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation!
+A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation and tampering!
 
 ## Objective
 
@@ -13,9 +13,10 @@ The project focuses on:
 - grouping transactions into blocks;
 - storing blocks in a blockchain;
 - displaying the blockchain structure;
-- linking blocks with SHA-256 hashes (v0.2).
+- linking blocks with SHA-256 hashes (v0.2);
+- validating the chain and simulating tampering (v0.3).
 
-Future versions will introduce chain validation and Proof of Work.
+A future version will introduce Proof of Work.
 
 ## Project Structure
 
@@ -134,7 +135,9 @@ Example session (input typed by the user follows each prompt; the program's mess
 2 - Mostrar transações pendentes
 3 - Criar bloco
 4 - Mostrar blockchain
-5 - Sair
+5 - Validar blockchain
+6 - Simular adulteração
+7 - Sair
 Digite como deseja navegar pelo menu: 1
 Entrando em Nova transação...
 Remetente: Alice
@@ -159,6 +162,10 @@ Alice -> Bruno: 10.00
 -------------------------------
 (menu is shown again)
 Digite como deseja navegar pelo menu: 5
+Entrando em Validar blockchain...
+Blockchain válida.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 7
 finalizando...
 ```
 
@@ -182,11 +189,13 @@ The program uses a terminal menu. The program's interface is in Portuguese, so t
 2 - Mostrar transações pendentes
 3 - Criar bloco
 4 - Mostrar blockchain
-5 - Sair
+5 - Validar blockchain
+6 - Simular adulteração
+7 - Sair
 Digite como deseja navegar pelo menu:
 ```
 
-In English: 1 - New transaction, 2 - Show pending transactions, 3 - Create block, 4 - Show blockchain, 5 - Exit.
+In English: 1 - New transaction, 2 - Show pending transactions, 3 - Create block, 4 - Show blockchain, 5 - Validate blockchain, 6 - Simulate tampering, 7 - Exit.
 
 Any other input (including text that is not a number) prints an "invalid option" message and shows the menu again.
 
@@ -259,7 +268,9 @@ This project applies concepts such as:
 - `append`;
 - `pop`;
 - `len`;
-- immutable data structures;
+- immutable data structures (blocks and transactions as tuples; tampering builds a new chain);
+- functions;
+- `if __name__ == "__main__"`;
 - SHA-256 hashing with `hashlib`;
 - JSON serialization with `json`;
 - unit tests with `unittest`;
@@ -285,9 +296,9 @@ This project applies concepts such as:
 
 ### Version 0.3
 
-- [ ] Validate the blockchain
-- [ ] Detect modified blocks
-- [ ] Simulate blockchain tampering
+- [x] Validate the blockchain
+- [x] Detect modified blocks
+- [x] Simulate blockchain tampering
 
 ### Version 0.4
 
@@ -320,7 +331,7 @@ A small change in the block data generates a completely different hash.
 
 ## Chain Validation
 
-Each block stores the hash of the previous block, so the blocks are already linked.
+Each block stores the hash of the previous block, so the blocks are linked.
 
 Conceptually:
 
@@ -338,15 +349,89 @@ previous_hash = BBB
 hash = CCC
 ```
 
-A valid blockchain must satisfy:
+Menu option 5 ("Validar blockchain") checks every block, in order, and reports every problem it finds. For each block it verifies:
 
 ```text
-previous_hash(Block i) = hash(Block i - 1)
+index          = position of the block in the chain
+block_hash     = SHA-256 of the block's own index, transactions and previous_hash
+previous_hash  = hash of the previous block (64 zeros for block 0)
 ```
 
-for every block after the genesis block.
+The check is implemented by `validate_chain(blockchain)`, which returns a list of messages. An empty list means the chain is valid.
 
-The program does not check this yet. Validating the chain and detecting modified blocks is planned for v0.3.
+If the chain is empty, the program prints `A blockchain ainda está vazia!!`. In the example below the chain has three blocks and nothing was changed:
+
+```text
+Digite como deseja navegar pelo menu: 5
+Entrando em Validar blockchain...
+Blockchain válida.
+```
+
+When something is wrong, each problem is listed ("hash do bloco não confere" means the block's own hash does not match its content; "hash anterior não confere" means the stored previous hash does not match the previous block's hash). A wrong index is reported as "índice incorreto". The next section shows real examples.
+
+## Tampering Simulation
+
+Menu option 6 ("Simular adulteração") plays the role of an attacker. It asks for a block, a transaction inside it and a new amount, and then asks whether the block's hash should be recalculated. The change is applied to the in-memory chain (a new list is built; the original tuples are not modified). Afterwards, use option 5 to validate the chain and see what was detected.
+
+All scenarios below use the same chain, built from these transactions (full hashes are not repeated here):
+
+```text
+BLOCO 0: Alice -> Bruno: 10.00, Bruno -> Carlos: 5.00
+BLOCO 1: Carlos -> Diego: 3.00
+BLOCO 2: Diego -> Alice: 2.00
+```
+
+The outputs below are real, captured from the program (the menu that is printed between steps is omitted).
+
+### Scenario 1: change without recalculating the hash
+
+The attacker changes the amount of the second transaction in block 0 to 500 and does not recalculate the hash:
+
+```text
+Digite como deseja navegar pelo menu: 6
+Entrando em Simular adulteração...
+Número do bloco: 0
+1 - Alice -> Bruno: 10.00
+2 - Bruno -> Carlos: 5.00
+Número da transação: 1
+Novo valor: 500
+Recalcular o hash do bloco? (s/n): n
+Bloco 0 adulterado. Use a opção 5 para validar a blockchain.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 5
+Entrando em Validar blockchain...
+Blockchain inválida! Problemas encontrados:
+- Bloco 0: hash do bloco não confere.
+```
+
+The stored hash no longer matches the changed content, so block 0 fails its own hash check.
+
+### Scenario 2: change and recalculate the hash
+
+Now the attacker makes the same change and also recalculates the hash of block 0 (answer `s`):
+
+```text
+Digite como deseja navegar pelo menu: 6
+Entrando em Simular adulteração...
+Número do bloco: 0
+1 - Alice -> Bruno: 10.00
+2 - Bruno -> Carlos: 5.00
+Número da transação: 1
+Novo valor: 500
+Recalcular o hash do bloco? (s/n): s
+Bloco 0 adulterado. Use a opção 5 para validar a blockchain.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 5
+Entrando em Validar blockchain...
+Blockchain inválida! Problemas encontrados:
+- Bloco 1: hash anterior não confere.
+```
+
+Block 0 is now consistent with its own (new) hash, but block 1 still stores the old hash of block 0 as its previous hash, so the link is broken.
+
+### Scenario 3: recalculating every following block (explained only)
+
+The program does not simulate this case. An attacker who changes block 0, recalculates its hash, then updates the previous hash of block 1 and recalculates block 1, and so on up to the last block, produces a chain that passes every check, because all hashes and links are consistent again. In this version, validation therefore proves that the chain is internally consistent, not that it is the original one. Making that rewrite expensive is the goal of Proof of Work, planned for v0.4 (it is not implemented yet).
 
 ## Proof of Work
 
@@ -385,7 +470,7 @@ Current version:
 
 ## Status
 
-Project under development. Version 0.2 is complete: every block now has a SHA-256 hash and stores the hash of the previous block.
+Project under development. Version 0.3 is complete: every block has a SHA-256 hash and stores the hash of the previous block, the chain can be validated, and tampering can be simulated and detected. Proof of Work is the next step (v0.4).
 
 Current focus:
 
@@ -398,5 +483,7 @@ blocks
     ↓
 hashed, linked blocks
     ↓
-chain validation (next, v0.3)
+chain validation and tampering simulation
+    ↓
+Proof of Work (next, v0.4)
 ```
