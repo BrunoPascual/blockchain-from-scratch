@@ -107,19 +107,66 @@ blockchain = [
 
 This allows blocks to be added sequentially while preserving their order.
 
-## Program Menu
+## How to run
 
-The initial version uses a terminal menu:
+Requirements: Python 3.8 or newer. No external dependencies.
+
+```bash
+python main.py
+```
+
+Example session (input typed by the user follows each prompt; the program's messages are in Portuguese):
 
 ```text
 ====== MINI BLOCKCHAIN ======
+1 - Nova transação
+2 - Mostrar transações pendentes
+3 - Criar bloco
+4 - Mostrar blockchain
+5 - Sair
+Digite como deseja navegar pelo menu: 1
+Entrando em Nova transação...
+Remetente: Alice
+Destinatário: Bruno
+Valor: 10
+Transação adicionada: Alice -> Bruno: 10.00
+(menu is shown again)
+Digite como deseja navegar pelo menu: 3
+Entrando em Criar bloco...
+BLOCO 0 criado com sucesso com 1 transações.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 4
+Entrando em Mostrar blockchain...
 
-1 - Add transaction
-2 - Show pending transactions
-3 - Create block
-4 - Show blockchain
-5 - Exit
+========== BLOCKCHAIN ==========
+
+BLOCO 0
+Referência anterior: GENESIS
+Transações:
+Alice -> Bruno: 10.00
+-------------------------------
+(menu is shown again)
+Digite como deseja navegar pelo menu: 5
+finalizando...
 ```
+
+## Program Menu
+
+The initial version uses a terminal menu. The program's interface is in Portuguese, so the text below is exactly what it prints:
+
+```text
+====== MINI BLOCKCHAIN ======
+1 - Nova transação
+2 - Mostrar transações pendentes
+3 - Criar bloco
+4 - Mostrar blockchain
+5 - Sair
+Digite como deseja navegar pelo menu:
+```
+
+In English: 1 - New transaction, 2 - Show pending transactions, 3 - Create block, 4 - Show blockchain, 5 - Exit.
+
+Any other input (including text that is not a number) prints an "invalid option" message and shows the menu again.
 
 The program remains active until the user chooses to exit.
 
@@ -128,9 +175,12 @@ The program remains active until the user chooses to exit.
 The initial implementation verifies basic conditions before accepting a transaction:
 
 ```text
+sender and receiver are trimmed (leading/trailing whitespace is removed)
 sender must not be empty
 receiver must not be empty
 sender must be different from receiver
+amount must be a valid number
+amount must be finite (inf and nan are rejected)
 amount must be greater than zero
 ```
 
@@ -194,13 +244,13 @@ This project applies concepts such as:
 
 ### Version 0.1
 
-- [ ] Create terminal menu
-- [ ] Add transactions
-- [ ] Store pending transactions
-- [ ] Display pending transactions
-- [ ] Create blocks
-- [ ] Add blocks to the blockchain
-- [ ] Display the blockchain
+- [x] Create terminal menu
+- [x] Add transactions
+- [x] Store pending transactions
+- [x] Display pending transactions
+- [x] Create blocks
+- [x] Add blocks to the blockchain
+- [x] Display the blockchain
 
 ### Version 0.2
 
