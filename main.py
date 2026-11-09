@@ -41,6 +41,46 @@ def create_block(blockchain, transactions):
     return (index, block_transactions, previous_hash, block_hash)
 
 
+def validate_chain(blockchain):
+    """Return a list of problem messages (Portuguese); empty means valid."""
+    problems = []
+    for position, block in enumerate(blockchain):
+        index, transactions, previous_hash, block_hash = block
+        if index != position:
+            problems.append(
+                f"Bloco {position}: índice incorreto "
+                f"(esperado {position}, encontrado {index})."
+            )
+        if block_hash != calculate_block_hash(index, transactions, previous_hash):
+            problems.append(f"Bloco {position}: hash do bloco não confere.")
+        if position == 0:
+            expected_previous = GENESIS_PREVIOUS_HASH
+        else:
+            expected_previous = blockchain[position - 1][3]
+        if previous_hash != expected_previous:
+            problems.append(f"Bloco {position}: hash anterior não confere.")
+    return problems
+
+
+def tamper_block(blockchain, block_position, transaction_position,
+                 new_amount, recalculate_hash):
+    """Return a NEW chain with one transaction amount changed.
+
+    Simulates an attacker, so any finite amount is accepted. The input list
+    and its tuples are never modified. Positions must already be valid.
+    """
+    index, transactions, previous_hash, block_hash = blockchain[block_position]
+    sender, receiver, _ = transactions[transaction_position]
+    new_transactions = list(transactions)
+    new_transactions[transaction_position] = (sender, receiver, float(new_amount))
+    new_transactions = tuple(new_transactions)
+    if recalculate_hash:
+        block_hash = calculate_block_hash(index, new_transactions, previous_hash)
+    result = list(blockchain)
+    result[block_position] = (index, new_transactions, previous_hash, block_hash)
+    return result
+
+
 def main():
     pending_transactions = []       # not yet included in a block
     blockchain = []                 # blocks already registered

@@ -2,7 +2,13 @@ import hashlib
 import json
 import unittest
 
-from main import GENESIS_PREVIOUS_HASH, calculate_block_hash, create_block
+from main import (
+    GENESIS_PREVIOUS_HASH,
+    calculate_block_hash,
+    create_block,
+    tamper_block,
+    validate_chain,
+)
 
 TRANSACTIONS = (("Ana", "Bob", 10.0), ("Bob", "Cid", 2.5))
 
@@ -107,6 +113,89 @@ class CreateBlockTests(unittest.TestCase):
         create_block(chain, [("Bob", "Cid", 2.0)])
         self.assertEqual(chain, snapshot)
         self.assertEqual(len(chain), 1)
+
+
+def build_chain(size):
+    chain = []
+    for i in range(size):
+        chain.append(create_block(chain, [("Ana", "Bob", float(i + 1))]))
+    return chain
+
+
+class ValidateChainTests(unittest.TestCase):
+    def test_empty_chain_is_valid(self):
+        self.assertEqual(validate_chain([]), [])
+
+    def test_valid_chain_has_no_problems(self):
+        self.assertEqual(validate_chain(build_chain(3)), [])
+
+    def test_tamper_without_recalculating_breaks_block_hash(self):
+        chain = build_chain(3)
+        tampered = tamper_block(chain, 0, 0, 99.0, False)
+        self.assertEqual(
+            validate_chain(tampered), ["Bloco 0: hash do bloco não confere."])
+
+    def test_tamper_with_recalculating_breaks_next_link(self):
+        chain = build_chain(2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        self.assertEqual(
+            validate_chain(tampered), ["Bloco 1: hash anterior não confere."])
+
+    def test_wrong_index_message(self):
+        block = (5, (("Ana", "Bob", 1.0),), GENESIS_PREVIOUS_HASH, "x")
+        block = (5, block[1], block[2],
+                 calculate_block_hash(5, block[1], block[2]))
+        self.assertEqual(
+            validate_chain([block]),
+            ["Bloco 0: índice incorreto (esperado 0, encontrado 5)."])
+
+    def test_wrong_genesis_previous_hash(self):
+        transactions = (("Ana", "Bob", 1.0),)
+        block = (0, transactions, "1" * 64,
+                 calculate_block_hash(0, transactions, "1" * 64))
+        self.assertEqual(
+            validate_chain([block]), ["Bloco 0: hash anterior não confere."])
+
+    def test_does_not_modify_chain(self):
+        chain = build_chain(2)
+        snapshot = list(chain)
+        validate_chain(chain)
+        self.assertEqual(chain, snapshot)
+
+
+class TamperBlockTests(unittest.TestCase):
+    def test_does_not_modify_input(self):
+        chain = build_chain(2)
+        snapshot = list(chain)
+        original = chain[0]
+        tamper_block(chain, 0, 0, 99.0, True)
+        self.assertEqual(chain, snapshot)
+        self.assertIs(chain[0], original)
+        self.assertEqual(original[1], (("Ana", "Bob", 1.0),))
+
+    def test_returns_new_list_with_replaced_amount(self):
+        chain = build_chain(2)
+        result = tamper_block(chain, 0, 0, 99, False)
+        self.assertIsNot(result, chain)
+        self.assertEqual(result[0][1], (("Ana", "Bob", 99.0),))
+        self.assertIsInstance(result[0][1][0][2], float)
+        self.assertEqual(result[0][0], chain[0][0])
+        self.assertEqual(result[0][2], chain[0][2])
+        self.assertEqual(result[0][3], chain[0][3])
+
+    def test_untouched_blocks_are_identical(self):
+        chain = build_chain(3)
+        result = tamper_block(chain, 1, 0, 5.0, True)
+        self.assertIs(result[0], chain[0])
+        self.assertIs(result[2], chain[2])
+        self.assertIsNot(result[1], chain[1])
+
+    def test_recalculated_hash_matches_fields(self):
+        chain = build_chain(2)
+        block = tamper_block(chain, 1, 0, 5.0, True)[1]
+        self.assertEqual(
+            block[3], calculate_block_hash(block[0], block[1], block[2]))
+        self.assertNotEqual(block[3], chain[1][3])
 
 
 if __name__ == "__main__":
