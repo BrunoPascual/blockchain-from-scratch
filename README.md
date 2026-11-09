@@ -457,21 +457,29 @@ Before v0.4, recalculating the hash of the last block was enough to hide the cha
 
 The program does not simulate this case. To make a changed chain pass every check, the attacker has to change block 0, mine a new nonce for it, update the previous hash of block 1 and mine block 1 again, and so on up to the last block. Every block from the changed one to the end must be mined again, because each of them stores a hash that depends on the block before it.
 
-Mining is the expensive part. For the chain used in these scenarios, option 3 printed these real attempt counts at difficulty 4:
+Mining is the expensive part. For the chain used in these scenarios, option 3 printed these real outputs at difficulty 4:
 
 ```text
-BLOCO 0: Nonce encontrado: 35429 (35430 tentativas em 0.15 s).
-BLOCO 1: Nonce encontrado: 125866 (125867 tentativas em 0.48 s).
-BLOCO 2: Nonce encontrado: 48957 (48958 tentativas em 0.20 s).
+Minerando bloco com dificuldade 4...
+BLOCO 0 criado com sucesso com 2 transações.
+Nonce encontrado: 35429 (35430 tentativas em 0.21 s).
+(menu is shown again)
+Minerando bloco com dificuldade 4...
+BLOCO 1 criado com sucesso com 1 transações.
+Nonce encontrado: 125866 (125867 tentativas em 0.60 s).
+(menu is shown again)
+Minerando bloco com dificuldade 4...
+BLOCO 2 criado com sucesso com 1 transações.
+Nonce encontrado: 48957 (48958 tentativas em 0.22 s).
 ```
 
 That is 210,255 attempts in total. An attacker who changes block 0 must do this work again for all three blocks (about 210,000 hash calculations or more, since the new nonces will be different), and one who changes block 1 must redo blocks 1 and 2. On average, difficulty 4 needs about 65,536 attempts per block (16 to the power of 4); this is an estimate, and a single block can take much less or much more, as the counts above show. Honest users pay this cost once per block, while an attacker pays it again for every block they want to rewrite. In a real network the attacker would also have to keep up with the other miners that keep adding blocks, which this simulator does not model.
 
 ## Proof of Work
 
-A future version will introduce a simplified mining mechanism.
+Version 0.4 introduces a simplified mining mechanism.
 
-The program will search for a `nonce` such that the generated hash satisfies a difficulty condition.
+The program searches for a `nonce` such that the generated hash satisfies a difficulty condition.
 
 Example:
 
@@ -491,7 +499,7 @@ repeat:
 until hash satisfies difficulty
 ```
 
-This will provide a simplified introduction to Proof of Work.
+This provides a simplified introduction to Proof of Work.
 
 ### How it works in v0.4
 
