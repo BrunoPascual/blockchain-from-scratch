@@ -18,6 +18,7 @@ from main import (
     menu_change_difficulty,
     menu_create_block,
     menu_full_attack,
+    menu_show_pending,
     menu_tamper,
     mine_block,
     print_error,
@@ -320,7 +321,8 @@ class RemineChainTests(unittest.TestCase):
 
     def test_remine_from_one_keeps_first_block(self):
         chain = build_chain(3, 2)
-        new_chain, attempts = remine_chain(chain, 1, 2)
+        tampered = tamper_block(chain, 1, 0, 99.0, True)
+        new_chain, attempts = remine_chain(tampered, 1, 2)
         self.assertIs(new_chain[0], chain[0])
         self.assertEqual(len(attempts), 2)
         self.assertEqual(validate_chain(new_chain, 2), [])
@@ -329,6 +331,8 @@ class RemineChainTests(unittest.TestCase):
         chain = build_chain(3, 2)
         tampered = tamper_block(chain, 2, 0, 99.0, True)
         new_chain, attempts = remine_chain(tampered, 2, 2)
+        self.assertIs(new_chain[0], chain[0])
+        self.assertIs(new_chain[1], chain[1])
         self.assertEqual(len(attempts), 1)
         self.assertEqual(validate_chain(new_chain, 2), [])
 
@@ -443,20 +447,19 @@ class SessionTests(unittest.TestCase):
                   "3", "3", "2", "4", "5",
                   "6", "0", "1", "500", "n",
                   "5", "9"]
-        title_line = "=" * 40
         expected = "".join([
-            MENU_TEXT + f"\n{title_line}\nAlterar dificuldade\n{title_line}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nTransação adicionada: Ana -> Bob: 10.00\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nTransação adicionada: Bob -> Cid: 2.50\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nTransação adicionada: Cid -> Ana: 1.00\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nTransação adicionada: Ana -> Cid: 3.00\n",
-            MENU_TEXT + f"\n{title_line}\nCriar bloco\n{title_line}\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 3 transações.\nNonce encontrado: 48 (49 tentativas em X s).\n",
-            MENU_TEXT + f"\n{title_line}\nCriar bloco\n{title_line}\nMinerando bloco com dificuldade 1...\nBLOCO 1 criado com sucesso com 1 transação.\nNonce encontrado: 3 (4 tentativas em X s).\n",
-            MENU_TEXT + f"\n{title_line}\nMostrar transações pendentes\n{title_line}\nNão há transações pendentes.\n",
-            MENU_TEXT + f"\n{title_line}\nMostrar blockchain\n{title_line}\nDificuldade   : 1 (o hash deve começar com 1 zeros)\n\nBLOCO 0\nHash anterior : 0000000000000000000000000000000000000000000000000000000000000000\nNonce         : 48\nHash          : 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nTransações:\n  Ana -> Bob: 10.00\n  Bob -> Cid: 2.50\n  Cid -> Ana: 1.00\n\nBLOCO 1\nHash anterior : 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nNonce         : 3\nHash          : 0991dabad16df13fcb375f69dc7132d72224511da4fcd3b126c867c840aba621\nTransações:\n  Ana -> Cid: 3.00\n",
-            MENU_TEXT + f"\n{title_line}\nValidar blockchain\n{title_line}\nBlockchain válida.\n",
-            MENU_TEXT + f"\n{title_line}\nSimular adulteração\n{title_line}\n1 - Ana -> Bob: 10.00\n2 - Bob -> Cid: 2.50\n3 - Cid -> Ana: 1.00\nBloco 0 adulterado. Use a opção 5 para validar a blockchain.\n",
-            MENU_TEXT + f"\n{title_line}\nValidar blockchain\n{title_line}\nBlockchain inválida! Problemas encontrados:\n- Bloco 0: hash do bloco não confere.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nAlterar dificuldade\n{_TITLE_LINE}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nTransação adicionada: Ana -> Bob: 10.00\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nTransação adicionada: Bob -> Cid: 2.50\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nTransação adicionada: Cid -> Ana: 1.00\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nTransação adicionada: Ana -> Cid: 3.00\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nCriar bloco\n{_TITLE_LINE}\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 3 transações.\nNonce encontrado: 48 (49 tentativas em X s).\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nCriar bloco\n{_TITLE_LINE}\nMinerando bloco com dificuldade 1...\nBLOCO 1 criado com sucesso com 1 transação.\nNonce encontrado: 3 (4 tentativas em X s).\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nMostrar transações pendentes\n{_TITLE_LINE}\nNão há transações pendentes.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nMostrar blockchain\n{_TITLE_LINE}\nDificuldade   : 1 (o hash deve começar com 1 zeros)\n\nBLOCO 0\nHash anterior : 0000000000000000000000000000000000000000000000000000000000000000\nNonce         : 48\nHash          : 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nTransações:\n  Ana -> Bob: 10.00\n  Bob -> Cid: 2.50\n  Cid -> Ana: 1.00\n\nBLOCO 1\nHash anterior : 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nNonce         : 3\nHash          : 0991dabad16df13fcb375f69dc7132d72224511da4fcd3b126c867c840aba621\nTransações:\n  Ana -> Cid: 3.00\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nValidar blockchain\n{_TITLE_LINE}\nBlockchain válida.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nSimular adulteração\n{_TITLE_LINE}\n1 - Ana -> Bob: 10.00\n2 - Bob -> Cid: 2.50\n3 - Cid -> Ana: 1.00\nBloco 0 adulterado. Use a opção 5 para validar a blockchain.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nValidar blockchain\n{_TITLE_LINE}\nBlockchain inválida! Problemas encontrados:\n- Bloco 0: hash do bloco não confere.\n",
             MENU_TEXT + "finalizando...\n",
         ])
         self.assertEqual(run_session(inputs), expected)
@@ -467,35 +470,44 @@ class SessionTests(unittest.TestCase):
                   "1", "Ana", "Bob", "abc",
                   "3", "4", "5", "6",
                   "8", "9", "9"]
-        title_line = "=" * 40
         expected = "".join([
             MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 9.\n",
             MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 9.\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nErro: Remetente e destinatário não podem estar vazios.\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nErro: Valor inválido. Digite um número.\n",
-            MENU_TEXT + f"\n{title_line}\nCriar bloco\n{title_line}\nErro: Não há transações pendentes para criar um bloco.\n",
-            MENU_TEXT + f"\n{title_line}\nMostrar blockchain\n{title_line}\nA blockchain ainda está vazia!!\n",
-            MENU_TEXT + f"\n{title_line}\nValidar blockchain\n{title_line}\nA blockchain ainda está vazia!!\n",
-            MENU_TEXT + f"\n{title_line}\nSimular adulteração\n{title_line}\nA blockchain ainda está vazia!!\n",
-            MENU_TEXT + f"\n{title_line}\nAlterar dificuldade\n{title_line}\nDificuldade atual: 4\nErro: Dificuldade inválida. Digite um número entre 0 e 5.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nErro: Remetente e destinatário não podem estar vazios.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nErro: Valor inválido. Digite um número.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nCriar bloco\n{_TITLE_LINE}\nErro: Não há transações pendentes para criar um bloco.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nMostrar blockchain\n{_TITLE_LINE}\nA blockchain ainda está vazia!!\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nValidar blockchain\n{_TITLE_LINE}\nA blockchain ainda está vazia!!\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nSimular adulteração\n{_TITLE_LINE}\nA blockchain ainda está vazia!!\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nAlterar dificuldade\n{_TITLE_LINE}\nDificuldade atual: 4\nErro: Dificuldade inválida. Digite um número entre 0 e 5.\n",
             MENU_TEXT + "finalizando...\n",
         ])
         self.assertEqual(run_session(inputs), expected)
 
     def test_session_eof_inside_tamper(self):
         inputs = ["8", "1", "1", "Ana", "Bob", "1", "3", "6", "0"]
-        title_line = "=" * 40
         expected = "".join([
-            MENU_TEXT + f"\n{title_line}\nAlterar dificuldade\n{title_line}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
-            MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nTransação adicionada: Ana -> Bob: 1.00\n",
-            MENU_TEXT + f"\n{title_line}\nCriar bloco\n{title_line}\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 1 transação.\nNonce encontrado: 15 (16 tentativas em X s).\n",
-            MENU_TEXT + f"\n{title_line}\nSimular adulteração\n{title_line}\n1 - Ana -> Bob: 1.00\n\nfinalizando...\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nAlterar dificuldade\n{_TITLE_LINE}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nNova transação\n{_TITLE_LINE}\nTransação adicionada: Ana -> Bob: 1.00\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nCriar bloco\n{_TITLE_LINE}\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 1 transação.\nNonce encontrado: 15 (16 tentativas em X s).\n",
+            MENU_TEXT + f"\n{_TITLE_LINE}\nSimular adulteração\n{_TITLE_LINE}\n1 - Ana -> Bob: 1.00\n\nfinalizando...\n",
         ])
         self.assertEqual(run_session(inputs), expected)
 
     def test_session_spaces_in_numbers(self):
         out = run_session([" 8 ", " 2 ", "9"])
         self.assertIn("Dificuldade alterada para 2.", out)
+
+    def test_show_pending_transactions(self):
+        state = ([("Ana", "Bob", 10.0), ("Bob", "Cid", 2.5)], [], 0)
+        _, output = run_menu(menu_show_pending, state, [])
+        expected = (
+            "\n" + _TITLE_LINE + "\nMostrar transações pendentes\n"
+            + _TITLE_LINE + "\nAs transações pendentes são:\n"
+            "1 - Ana -> Bob: 10.00\n"
+            "2 - Bob -> Cid: 2.50\n"
+        )
+        self.assertEqual(output, expected)
 
     def test_create_block_singular_word(self):
         _, output = run_menu(
@@ -518,8 +530,11 @@ class SessionTests(unittest.TestCase):
             "9",
         ]
         out = run_session(inputs)
-        # After the two validations, the second one must report valid again.
-        self.assertIn("Blockchain inválida! Problemas encontrados:", out)
+        # The first validation (before tampering) must report the chain as valid.
+        self.assertIn("Blockchain válida.", out)
+        first_valid_index = out.find("Blockchain válida.")
+        invalid_index = out.find("Blockchain inválida! Problemas encontrados:")
+        self.assertLess(first_valid_index, invalid_index)
         # The final validation following the full attack must be valid.
         last_valid_index = out.rfind("Blockchain válida.")
         last_invalid_index = out.rfind("Blockchain inválida! Problemas encontrados:")
