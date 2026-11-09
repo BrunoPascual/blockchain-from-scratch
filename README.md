@@ -1,6 +1,6 @@
 # Blockchain From Scratch
 
-A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation.
+A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation!
 
 ## Objective
 
