@@ -302,12 +302,8 @@ def main():
                 try:
                     new_difficulty = int(raw_difficulty)
                 except ValueError:
-                    print(
-                        f"Dificuldade inválida. Digite um número entre 0 e "
-                        f"{MAX_DIFFICULTY}."
-                    )
-                    continue
-                if new_difficulty < 0 or new_difficulty > MAX_DIFFICULTY:
+                    new_difficulty = None
+                if new_difficulty is None or not 0 <= new_difficulty <= MAX_DIFFICULTY:
                     print(
                         f"Dificuldade inválida. Digite um número entre 0 e "
                         f"{MAX_DIFFICULTY}."
