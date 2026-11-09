@@ -6,15 +6,16 @@ A simple blockchain simulator built from scratch in Python to explore transactio
 
 This project aims to build a simplified blockchain step by step using basic Python concepts.
 
-The initial version focuses on:
+The project focuses on:
 
 - creating transactions;
 - storing pending transactions;
 - grouping transactions into blocks;
 - storing blocks in a blockchain;
-- displaying the blockchain structure.
+- displaying the blockchain structure;
+- linking blocks with SHA-256 hashes (v0.2).
 
-Future versions will introduce hashing, chain validation and Proof of Work.
+Future versions will introduce chain validation and Proof of Work.
 
 ## Project Structure
 
@@ -30,7 +31,7 @@ Block 2
 ...
 ```
 
-Each block stores transactions and a reference to the previous block.
+Each block stores transactions and the SHA-256 hash of the previous block, which links the blocks together.
 
 ## Transactions
 
@@ -68,30 +69,40 @@ pending_transactions = [
 
 ## Blocks
 
-In the initial version, a block contains:
+Since v0.2, a block is a tuple:
 
 ```text
-index
-transactions
-previous block reference
+(index, transactions, previous_hash, block_hash)
 ```
 
-Conceptually:
+- `index`: position of the block in the chain, starting at 0;
+- `transactions`: a tuple with up to three transactions;
+- `previous_hash`: the hash of the previous block (the first block uses 64 zeros);
+- `block_hash`: the SHA-256 hash of this block's own content.
+
+The hash is calculated from `index`, `transactions` and `previous_hash`. These values are serialized to compact JSON (`json.dumps` with `separators=(",", ":")` and `ensure_ascii=False`), encoded as UTF-8 and hashed with SHA-256. The result is 64 lowercase hex characters. There is no timestamp, so the same block content always produces the same hash.
+
+The first block (genesis) uses `"0" * 64` as its previous hash. Every later block stores the hash of the block before it.
+
+This is what the program prints for a chain with two blocks (the labels are in Portuguese: "Hash anterior" is the previous hash, "Transações" are the transactions):
 
 ```text
-BLOCK #0
+BLOCO 0
+Hash anterior: 0000000000000000000000000000000000000000000000000000000000000000
+Hash: 2773ccc05269072939b298b272c339e4eb3f8b1c9a40930dd758349689f21e12
+Transações:
+Alice -> Bruno: 10.00
+Bruno -> Carlos: 5.00
+Carlos -> Diego: 3.00
+-------------------------------
 
-Previous reference: GENESIS
-
-Transactions:
-Alice -> Bruno: 10
-Bruno -> Carlos: 5
-Carlos -> Diego: 3
+BLOCO 1
+Hash anterior: 2773ccc05269072939b298b272c339e4eb3f8b1c9a40930dd758349689f21e12
+Hash: ef7fd3f04998e2ce59c344d24b25c8202a8ba657589f4d722f55687a7b2a10c5
+Transações:
+Diego -> Alice: 2.00
+-------------------------------
 ```
-
-The first block uses `GENESIS` as its previous reference.
-
-Future versions will replace this reference with the cryptographic hash of the previous block.
 
 ## Blockchain
 
@@ -141,7 +152,8 @@ Entrando em Mostrar blockchain...
 ========== BLOCKCHAIN ==========
 
 BLOCO 0
-Referência anterior: GENESIS
+Hash anterior: 0000000000000000000000000000000000000000000000000000000000000000
+Hash: <64-character SHA-256 hash of block 0>
 Transações:
 Alice -> Bruno: 10.00
 -------------------------------
@@ -150,9 +162,19 @@ Digite como deseja navegar pelo menu: 5
 finalizando...
 ```
 
+The `Hash` line above is abbreviated on purpose; the program prints the full 64 hex characters (see the example in the Blocks section).
+
+## Running the tests
+
+The tests use the standard library `unittest` module, so nothing needs to be installed:
+
+```bash
+python -m unittest -v
+```
+
 ## Program Menu
 
-The initial version uses a terminal menu. The program's interface is in Portuguese, so the text below is exactly what it prints:
+The program uses a terminal menu. The program's interface is in Portuguese, so the text below is exactly what it prints:
 
 ```text
 ====== MINI BLOCKCHAIN ======
@@ -238,6 +260,9 @@ This project applies concepts such as:
 - `pop`;
 - `len`;
 - immutable data structures;
+- SHA-256 hashing with `hashlib`;
+- JSON serialization with `json`;
+- unit tests with `unittest`;
 - blockchain fundamentals.
 
 ## Development Roadmap
@@ -254,9 +279,9 @@ This project applies concepts such as:
 
 ### Version 0.2
 
-- [ ] Add SHA-256 hashing
-- [ ] Generate a hash for each block
-- [ ] Store the previous block hash
+- [x] Add SHA-256 hashing
+- [x] Generate a hash for each block
+- [x] Store the previous block hash
 
 ### Version 0.3
 
@@ -277,9 +302,9 @@ This project applies concepts such as:
 - [ ] Add more test cases
 - [ ] Document the full blockchain flow
 
-## Future Cryptography
+## Cryptography
 
-The project will later use SHA-256 through Python's `hashlib` library.
+Blocks are hashed with SHA-256 through Python's `hashlib` library.
 
 The simplified idea is:
 
@@ -291,16 +316,17 @@ SHA-256
 cryptographic hash
 ```
 
-A small change in the block data should generate a different hash.
+A small change in the block data generates a completely different hash.
 
 ## Chain Validation
 
-Each block will eventually store the hash of the previous block.
+Each block stores the hash of the previous block, so the blocks are already linked.
 
 Conceptually:
 
 ```text
 Block 0
+previous_hash = 000...000
 hash = AAA
    ↓
 Block 1
@@ -320,7 +346,7 @@ previous_hash(Block i) = hash(Block i - 1)
 
 for every block after the genesis block.
 
-This mechanism will allow the program to detect modifications in previous blocks.
+The program does not check this yet. Validating the chain and detecting modified blocks is planned for v0.3.
 
 ## Proof of Work
 
@@ -353,14 +379,13 @@ This will provide a simplified introduction to Proof of Work.
 Current version:
 
 - Python
-
-Future additions:
-
-- `hashlib`
+- `hashlib` (SHA-256)
+- `json` (deterministic block serialization)
+- `unittest` (tests)
 
 ## Status
 
-Project under development.
+Project under development. Version 0.2 is complete: every block now has a SHA-256 hash and stores the hash of the previous block.
 
 Current focus:
 
@@ -371,7 +396,7 @@ pending transactions
     ↓
 blocks
     ↓
-blockchain
+hashed, linked blocks
+    ↓
+chain validation (next, v0.3)
 ```
-
-The cryptographic layer will be added after the basic data structure is working correctly.
