@@ -1,6 +1,10 @@
+import contextlib
 import hashlib
+import io
 import json
+import re
 import unittest
+from unittest import mock
 
 from main import (
     DEFAULT_DIFFICULTY,
@@ -8,6 +12,9 @@ from main import (
     MAX_DIFFICULTY,
     calculate_block_hash,
     create_block,
+    main,
+    menu_change_difficulty,
+    menu_create_block,
     mine_block,
     tamper_block,
     validate_chain,
@@ -285,6 +292,122 @@ class TamperBlockTests(unittest.TestCase):
         self.assertEqual(
             block[4], calculate_block_hash(block[0], block[1], block[2], block[3]))
         self.assertNotEqual(block[4], chain[1][4])
+
+
+MENU_TEXT = (
+    "====== MINI BLOCKCHAIN ======\n"
+    "1 - Nova transação\n"
+    "2 - Mostrar transações pendentes\n"
+    "3 - Criar bloco\n"
+    "4 - Mostrar blockchain\n"
+    "5 - Validar blockchain\n"
+    "6 - Simular adulteração\n"
+    "7 - Alterar dificuldade\n"
+    "8 - Sair\n"
+)
+
+
+def run_session(inputs):
+    """Run main() feeding the given inputs; EOF follows the last one."""
+    buffer = io.StringIO()
+    with mock.patch("builtins.input", side_effect=list(inputs) + [EOFError()]):
+        with contextlib.redirect_stdout(buffer):
+            main()
+    # Mining time varies from run to run, so it is normalized.
+    return re.sub(r"em \d+\.\d\d s", "em X s", buffer.getvalue())
+
+
+def run_menu(function, state, inputs):
+    """Run one menu function; return (new_state, printed output)."""
+    buffer = io.StringIO()
+    with mock.patch("builtins.input", side_effect=list(inputs)):
+        with contextlib.redirect_stdout(buffer):
+            new_state = function(state)
+    return new_state, re.sub(r"em \d+\.\d\d s", "em X s", buffer.getvalue())
+
+
+class SessionTests(unittest.TestCase):
+    def test_session_full_flow(self):
+        inputs = ["7", "1",
+                  "1", "Ana", "Bob", "10",
+                  "1", "Bob", "Cid", "2.5",
+                  "1", "Cid", "Ana", "1",
+                  "1", "Ana", "Cid", "3",
+                  "3", "3", "2", "4", "5",
+                  "6", "0", "1", "500", "n",
+                  "5", "8"]
+        expected = "".join([
+            MENU_TEXT + 'Entrando em Alterar dificuldade...\nDificuldade atual: 4\nDificuldade alterada para 1.\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nTransação adicionada: Ana -> Bob: 10.00\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nTransação adicionada: Bob -> Cid: 2.50\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nTransação adicionada: Cid -> Ana: 1.00\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nTransação adicionada: Ana -> Cid: 3.00\n',
+            MENU_TEXT + 'Entrando em Criar bloco...\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 3 transações.\nNonce encontrado: 48 (49 tentativas em X s).\n',
+            MENU_TEXT + 'Entrando em Criar bloco...\nMinerando bloco com dificuldade 1...\nBLOCO 1 criado com sucesso com 1 transações.\nNonce encontrado: 3 (4 tentativas em X s).\n',
+            MENU_TEXT + 'Entrando em Mostrar transações pendentes...\nNão há transações pendentes.\n',
+            MENU_TEXT + 'Entrando em Mostrar blockchain...\n\n========== BLOCKCHAIN ==========\nDificuldade: 1 (o hash deve começar com 1 zeros)\n\nBLOCO 0\nHash anterior: 0000000000000000000000000000000000000000000000000000000000000000\nNonce: 48\nHash: 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nTransações:\nAna -> Bob: 10.00\nBob -> Cid: 2.50\nCid -> Ana: 1.00\n-------------------------------\n\nBLOCO 1\nHash anterior: 0c5672ac5ce664ae5aa4d586266c2eb0f99b0928b70dc70630da3fc9c36ab128\nNonce: 3\nHash: 0991dabad16df13fcb375f69dc7132d72224511da4fcd3b126c867c840aba621\nTransações:\nAna -> Cid: 3.00\n-------------------------------\n',
+            MENU_TEXT + 'Entrando em Validar blockchain...\nBlockchain válida.\n',
+            MENU_TEXT + 'Entrando em Simular adulteração...\n1 - Ana -> Bob: 10.00\n2 - Bob -> Cid: 2.50\n3 - Cid -> Ana: 1.00\nBloco 0 adulterado. Use a opção 5 para validar a blockchain.\n',
+            MENU_TEXT + 'Entrando em Validar blockchain...\nBlockchain inválida! Problemas encontrados:\n- Bloco 0: hash do bloco não confere.\n',
+            MENU_TEXT + 'finalizando...\n',
+        ])
+        self.assertEqual(run_session(inputs), expected)
+
+    def test_session_invalid_inputs(self):
+        inputs = ["x", "99",
+                  "1", "", "Bob", "5",
+                  "1", "Ana", "Bob", "abc",
+                  "3", "4", "5", "6",
+                  "7", "9", "8"]
+        expected = "".join([
+            MENU_TEXT + 'Opção inválida. Digite um número entre 1 e 8.\n',
+            MENU_TEXT + 'Opção inválida. Digite um número entre 1 e 8.\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nRemetente e destinatário não podem estar vazios.\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nValor inválido. Digite um número.\n',
+            MENU_TEXT + 'Entrando em Criar bloco...\nNão há transações pendentes para criar um bloco.\n',
+            MENU_TEXT + 'Entrando em Mostrar blockchain...\nA blockchain ainda está vazia!!\n',
+            MENU_TEXT + 'Entrando em Validar blockchain...\nA blockchain ainda está vazia!!\n',
+            MENU_TEXT + 'Entrando em Simular adulteração...\nA blockchain ainda está vazia!!\n',
+            MENU_TEXT + 'Entrando em Alterar dificuldade...\nDificuldade atual: 4\nDificuldade inválida. Digite um número entre 0 e 5.\n',
+            MENU_TEXT + 'finalizando...\n',
+        ])
+        self.assertEqual(run_session(inputs), expected)
+
+    def test_session_eof_inside_tamper(self):
+        inputs = ["7", "1", "1", "Ana", "Bob", "1", "3", "6", "0"]
+        expected = "".join([
+            MENU_TEXT + 'Entrando em Alterar dificuldade...\nDificuldade atual: 4\nDificuldade alterada para 1.\n',
+            MENU_TEXT + 'Entrando em Nova transação...\nTransação adicionada: Ana -> Bob: 1.00\n',
+            MENU_TEXT + 'Entrando em Criar bloco...\nMinerando bloco com dificuldade 1...\nBLOCO 0 criado com sucesso com 1 transações.\nNonce encontrado: 15 (16 tentativas em X s).\n',
+            MENU_TEXT + 'Entrando em Simular adulteração...\n1 - Ana -> Bob: 1.00\n\nfinalizando...\n',
+        ])
+        self.assertEqual(run_session(inputs), expected)
+
+    def test_session_spaces_in_numbers(self):
+        out = run_session([" 7 ", " 2 ", "8"])
+        self.assertIn("Dificuldade alterada para 2.", out)
+
+
+class MenuFunctionTests(unittest.TestCase):
+    def test_create_block_takes_three_and_keeps_rest_pending(self):
+        pending = [("A", "B", float(n)) for n in range(1, 5)]
+        state, _ = run_menu(menu_create_block, (pending, [], 0), [])
+        new_pending, chain, difficulty = state
+        self.assertEqual(len(new_pending), 1)
+        self.assertEqual(len(chain), 1)
+        self.assertEqual(len(chain[0][1]), 3)
+        self.assertEqual(difficulty, 0)
+
+    def test_change_difficulty_on_empty_chain(self):
+        state, _ = run_menu(menu_change_difficulty, ([], [], 4), ["3"])
+        self.assertEqual(state, ([], [], 3))
+
+    def test_change_difficulty_on_non_empty_chain_is_unchanged(self):
+        chain = [create_block([], [("A", "B", 1.0)], 0)]
+        state = ([], chain, 0)
+        new_state, output = run_menu(menu_change_difficulty, state, [])
+        self.assertEqual(new_state, state)
+        self.assertIn("só pode ser alterada", output)
 
 
 if __name__ == "__main__":
