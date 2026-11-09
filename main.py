@@ -272,22 +272,24 @@ def menu_validate(state):
     return state
 
 
-def menu_tamper(state):
-    """Option 6: change a transaction amount of a block."""
-    pending_transactions, blockchain, difficulty = state
-    print_title("Simular adulteração")
+def ask_tamper_target(blockchain):
+    """Ask for block, transaction and new amount shared by tamper options.
+
+    Returns (block_position, transaction_position_0_based, new_amount) or
+    None when the chain is empty or any input is invalid.
+    """
     if blockchain == []:
         print("A blockchain ainda está vazia!!")
-        return state
+        return None
 
     try:
         block_position = int(input("Número do bloco: "))
     except ValueError:
         print_error("Bloco inválido.")
-        return state
+        return None
     if block_position < 0 or block_position >= len(blockchain):
         print_error("Bloco inválido.")
-        return state
+        return None
 
     for number, transaction in enumerate(blockchain[block_position][1], start=1):
         print(f"{number} - {format_transaction(transaction)}")
@@ -296,32 +298,96 @@ def menu_tamper(state):
         transaction_number = int(input("Número da transação: "))
     except ValueError:
         print_error("Transação inválida.")
-        return state
+        return None
     if (transaction_number < 1
             or transaction_number > len(blockchain[block_position][1])):
         print_error("Transação inválida.")
-        return state
+        return None
 
     try:
         new_amount = float(input("Novo valor: "))
     except ValueError:
         print_error("Valor inválido. Digite um número.")
-        return state
+        return None
     if not math.isfinite(new_amount):
         print_error("Valor inválido. Digite um número.")
+        return None
+
+    return (block_position, transaction_number - 1, new_amount)
+
+
+def menu_tamper(state):
+    """Option 6: change a transaction amount of a block."""
+    pending_transactions, blockchain, difficulty = state
+    print_title("Simular adulteração")
+
+    target = ask_tamper_target(blockchain)
+    if target is None:
         return state
+    block_position, transaction_position, new_amount = target
 
     answer = input("Recalcular o hash do bloco? (s/n): ")
     recalculate_hash = answer.strip().lower() == "s"
 
     blockchain = tamper_block(
-        blockchain, block_position, transaction_number - 1,
+        blockchain, block_position, transaction_position,
         new_amount, recalculate_hash,
     )
     print(
         f"Bloco {block_position} adulterado. "
         f"Use a opção 5 para validar a blockchain."
     )
+    return (pending_transactions, blockchain, difficulty)
+
+
+def menu_full_attack(state):
+    """Option 7: tamper a block and re-mine every block from there."""
+    pending_transactions, blockchain, difficulty = state
+    print_title("Simular ataque completo")
+
+    target = ask_tamper_target(blockchain)
+    if target is None:
+        return state
+    block_position, transaction_position, new_amount = target
+
+    blockchain = tamper_block(
+        blockchain, block_position, transaction_position,
+        new_amount, True,
+    )
+
+    last = len(blockchain) - 1
+    print(
+        f"Bloco {block_position} adulterado. "
+        f"Re-minerando os blocos {block_position} a {last} "
+        f"com dificuldade {difficulty}..."
+    )
+
+    start = time.perf_counter()
+    blockchain, attempts = remine_chain(blockchain, block_position, difficulty)
+    elapsed = time.perf_counter() - start
+
+    for offset, block in enumerate(blockchain[block_position:]):
+        position = block_position + offset
+        nonce = block[3]
+        print(
+            f"BLOCO {position} re-minerado: nonce {nonce} "
+            f"({attempts[offset]} tentativas)."
+        )
+
+    print(f"Total: {sum(attempts)} tentativas em {elapsed:.2f} s.")
+
+    if validate_chain(blockchain, difficulty) == []:
+        print(
+            "Blockchain válida novamente: o ataque funcionou, "
+            "mas custou todo esse trabalho de mineração."
+        )
+        print(
+            "Mineradores honestos fazem esse trabalho uma vez; "
+            "o atacante precisa refazê-lo para cada bloco reescrito."
+        )
+    else:
+        print_error("A blockchain continua inválida.")
+
     return (pending_transactions, blockchain, difficulty)
 
 
@@ -359,6 +425,7 @@ MENU = [
     ("Mostrar blockchain", menu_show_blockchain),
     ("Validar blockchain", menu_validate),
     ("Simular adulteração", menu_tamper),
+    ("Simular ataque completo", menu_full_attack),
     ("Alterar dificuldade", menu_change_difficulty),
 ]
 EXIT_OPTION = len(MENU) + 1

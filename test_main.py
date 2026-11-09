@@ -10,12 +10,15 @@ from main import (
     DEFAULT_DIFFICULTY,
     GENESIS_PREVIOUS_HASH,
     MAX_DIFFICULTY,
+    ask_tamper_target,
     calculate_block_hash,
     create_block,
     format_transaction,
     main,
     menu_change_difficulty,
     menu_create_block,
+    menu_full_attack,
+    menu_tamper,
     mine_block,
     print_error,
     print_field,
@@ -405,8 +408,9 @@ MENU_TEXT = (
     "4 - Mostrar blockchain\n"
     "5 - Validar blockchain\n"
     "6 - Simular adulteração\n"
-    "7 - Alterar dificuldade\n"
-    "8 - Sair\n"
+    "7 - Simular ataque completo\n"
+    "8 - Alterar dificuldade\n"
+    "9 - Sair\n"
 )
 
 
@@ -431,14 +435,14 @@ def run_menu(function, state, inputs):
 
 class SessionTests(unittest.TestCase):
     def test_session_full_flow(self):
-        inputs = ["7", "1",
+        inputs = ["8", "1",
                   "1", "Ana", "Bob", "10",
                   "1", "Bob", "Cid", "2.5",
                   "1", "Cid", "Ana", "1",
                   "1", "Ana", "Cid", "3",
                   "3", "3", "2", "4", "5",
                   "6", "0", "1", "500", "n",
-                  "5", "8"]
+                  "5", "9"]
         title_line = "=" * 40
         expected = "".join([
             MENU_TEXT + f"\n{title_line}\nAlterar dificuldade\n{title_line}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
@@ -462,11 +466,11 @@ class SessionTests(unittest.TestCase):
                   "1", "", "Bob", "5",
                   "1", "Ana", "Bob", "abc",
                   "3", "4", "5", "6",
-                  "7", "9", "8"]
+                  "8", "9", "9"]
         title_line = "=" * 40
         expected = "".join([
-            MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 8.\n",
-            MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 8.\n",
+            MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 9.\n",
+            MENU_TEXT + "Erro: Opção inválida. Digite um número entre 1 e 9.\n",
             MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nErro: Remetente e destinatário não podem estar vazios.\n",
             MENU_TEXT + f"\n{title_line}\nNova transação\n{title_line}\nErro: Valor inválido. Digite um número.\n",
             MENU_TEXT + f"\n{title_line}\nCriar bloco\n{title_line}\nErro: Não há transações pendentes para criar um bloco.\n",
@@ -479,7 +483,7 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(run_session(inputs), expected)
 
     def test_session_eof_inside_tamper(self):
-        inputs = ["7", "1", "1", "Ana", "Bob", "1", "3", "6", "0"]
+        inputs = ["8", "1", "1", "Ana", "Bob", "1", "3", "6", "0"]
         title_line = "=" * 40
         expected = "".join([
             MENU_TEXT + f"\n{title_line}\nAlterar dificuldade\n{title_line}\nDificuldade atual: 4\nDificuldade alterada para 1.\n",
@@ -490,13 +494,40 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(run_session(inputs), expected)
 
     def test_session_spaces_in_numbers(self):
-        out = run_session([" 7 ", " 2 ", "8"])
+        out = run_session([" 8 ", " 2 ", "9"])
         self.assertIn("Dificuldade alterada para 2.", out)
 
     def test_create_block_singular_word(self):
         _, output = run_menu(
             menu_create_block, ([("Ana", "Bob", 10.0)], [], 0), [])
         self.assertIn("BLOCO 0 criado com sucesso com 1 transação.", output)
+
+    def test_session_end_to_end(self):
+        inputs = [
+            "8", "1",
+            "1", "Ana", "Bob", "10",
+            "1", "Bob", "Cid", "2.5",
+            "1", "Cid", "Ana", "1",
+            "1", "Ana", "Cid", "3",
+            "3", "3",
+            "5",
+            "6", "0", "1", "500", "n",
+            "5",
+            "7", "0", "1", "500",
+            "5",
+            "9",
+        ]
+        out = run_session(inputs)
+        # After the two validations, the second one must report valid again.
+        self.assertIn("Blockchain inválida! Problemas encontrados:", out)
+        # The final validation following the full attack must be valid.
+        last_valid_index = out.rfind("Blockchain válida.")
+        last_invalid_index = out.rfind("Blockchain inválida! Problemas encontrados:")
+        self.assertGreater(last_valid_index, last_invalid_index)
+        self.assertIn("Bloco 0 adulterado. Re-minerando os blocos 0 a 1", out)
+        self.assertIn("BLOCO 0 re-minerado: nonce", out)
+        self.assertIn("BLOCO 1 re-minerado: nonce", out)
+        self.assertIn("Blockchain válida novamente: o ataque funcionou", out)
 
 
 class MenuFunctionTests(unittest.TestCase):
@@ -519,6 +550,105 @@ class MenuFunctionTests(unittest.TestCase):
         new_state, output = run_menu(menu_change_difficulty, state, [])
         self.assertEqual(new_state, state)
         self.assertIn("só pode ser alterada", output)
+
+    def _build_two_block_chain(self, difficulty=1):
+        pending = []
+        blockchain = []
+        for amount in [10.0, 2.5]:
+            blockchain.append(
+                create_block(blockchain, [("Ana", "Bob", amount)], difficulty))
+        return pending, blockchain, difficulty
+
+    def test_full_attack_makes_chain_valid(self):
+        state = self._build_two_block_chain(1)
+        new_state, output = run_menu(
+            menu_full_attack, state, ["0", "1", "500"])
+        _, chain, difficulty = new_state
+        self.assertEqual(validate_chain(chain, difficulty), [])
+        self.assertEqual(chain[0][1][0][2], 500.0)
+        self.assertIn("BLOCO 0 re-minerado: nonce", output)
+        self.assertIn("BLOCO 1 re-minerado: nonce", output)
+        self.assertIn(
+            "Blockchain válida novamente: o ataque funcionou", output)
+
+    def test_full_attack_on_last_block_remines_one(self):
+        state = self._build_two_block_chain(1)
+        new_state, output = run_menu(
+            menu_full_attack, state, ["1", "1", "500"])
+        _, chain, difficulty = new_state
+        self.assertEqual(validate_chain(chain, difficulty), [])
+        re_minerado_count = output.count("re-minerado")
+        self.assertEqual(re_minerado_count, 1)
+        self.assertIn(
+            "Blockchain válida novamente: o ataque funcionou", output)
+
+    def test_full_attack_empty_chain(self):
+        state = ([], [], 1)
+        new_state, output = run_menu(menu_full_attack, state, ["0", "1", "500"])
+        self.assertEqual(new_state, state)
+        self.assertIn("A blockchain ainda está vazia!!", output)
+
+    def test_full_attack_invalid_block(self):
+        state = self._build_two_block_chain(1)
+        new_state, _ = run_menu(menu_full_attack, state, ["9"])
+        self.assertEqual(new_state, state)
+
+    def test_full_attack_invalid_block_error_message(self):
+        state = self._build_two_block_chain(1)
+        _, output = run_menu(menu_full_attack, state, ["9"])
+        self.assertIn("Erro: Bloco inválido.", output)
+
+    def test_full_attack_invalid_transaction(self):
+        state = self._build_two_block_chain(1)
+        new_state, _ = run_menu(menu_full_attack, state, ["0", "9"])
+        self.assertEqual(new_state, state)
+
+    def test_full_attack_invalid_transaction_error_message(self):
+        state = self._build_two_block_chain(1)
+        _, output = run_menu(menu_full_attack, state, ["0", "9"])
+        self.assertIn("Erro: Transação inválida.", output)
+
+    def test_full_attack_invalid_value(self):
+        state = self._build_two_block_chain(1)
+        new_state, _ = run_menu(menu_full_attack, state, ["0", "1", "abc"])
+        self.assertEqual(new_state, state)
+
+    def test_full_attack_invalid_value_error_message(self):
+        state = self._build_two_block_chain(1)
+        _, output = run_menu(menu_full_attack, state, ["0", "1", "abc"])
+        self.assertIn("Erro: Valor inválido. Digite um número.", output)
+
+    def test_full_attack_eof_at_value(self):
+        out = run_session([
+            "8", "1",
+            "1", "Ana", "Bob", "1",
+            "3",
+            "7", "0", "1",
+        ])
+        self.assertTrue(out.endswith("finalizando...\n"))
+
+
+class AskTamperTargetTests(unittest.TestCase):
+    def _ask(self, chain, inputs):
+        """Call ask_tamper_target capturing its printed prompts."""
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            with mock.patch("builtins.input", side_effect=list(inputs)):
+                return ask_tamper_target(chain)
+
+    def test_empty_chain_returns_none(self):
+        result = self._ask([], [])
+        self.assertIsNone(result)
+
+    def test_valid_target_returns_positions_and_amount(self):
+        chain = build_chain(2, 0)
+        result = self._ask(chain, ["0", "1", "500"])
+        self.assertEqual(result, (0, 0, 500.0))
+
+    def test_invalid_block_returns_none(self):
+        chain = build_chain(2, 0)
+        result = self._ask(chain, ["9"])
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":
