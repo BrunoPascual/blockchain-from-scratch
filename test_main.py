@@ -165,29 +165,71 @@ def build_chain(size, difficulty=0):
 
 class ValidateChainTests(unittest.TestCase):
     def test_empty_chain_is_valid(self):
-        self.assertEqual(validate_chain([]), [])
+        self.assertEqual(validate_chain([], 0), [])
 
     def test_valid_chain_has_no_problems(self):
-        self.assertEqual(validate_chain(build_chain(3)), [])
+        self.assertEqual(validate_chain(build_chain(3), 0), [])
+
+    def test_valid_chain_at_difficulty_two_has_no_problems(self):
+        self.assertEqual(validate_chain(build_chain(3, 2), 2), [])
+
+    def test_chain_built_at_difficulty_zero_validated_at_two_reports_difficulty(self):
+        # Hand-built deterministic chain: nonce 0 never meets difficulty 2.
+        transactions0 = (("Ana", "Bob", 1.0),)
+        block0 = (0, transactions0, GENESIS_PREVIOUS_HASH,
+                  0,
+                  calculate_block_hash(0, transactions0, GENESIS_PREVIOUS_HASH, 0))
+        transactions1 = (("Ana", "Bob", 2.0),)
+        block1 = (1, transactions1, block0[4],
+                  0,
+                  calculate_block_hash(1, transactions1, block0[4], 0))
+        chain = [block0, block1]
+        self.assertEqual(
+            validate_chain(chain, 2),
+            [
+                "Bloco 0: hash não atende à dificuldade (esperado 2 zeros no início).",
+                "Bloco 1: hash não atende à dificuldade (esperado 2 zeros no início).",
+            ])
 
     def test_tamper_without_recalculating_breaks_block_hash(self):
         chain = build_chain(3)
         tampered = tamper_block(chain, 0, 0, 99.0, False)
         self.assertEqual(
-            validate_chain(tampered), ["Bloco 0: hash do bloco não confere."])
+            validate_chain(tampered, 0), ["Bloco 0: hash do bloco não confere."])
 
     def test_tamper_with_recalculating_breaks_next_link(self):
         chain = build_chain(2)
         tampered = tamper_block(chain, 0, 0, 99.0, True)
         self.assertEqual(
-            validate_chain(tampered), ["Bloco 1: hash anterior não confere."])
+            validate_chain(tampered, 0), ["Bloco 1: hash anterior não confere."])
+
+    def test_tamper_with_recalculating_at_difficulty_two_reports_problems(self):
+        chain = build_chain(2, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        problems = validate_chain(tampered, 2)
+        self.assertIn("Bloco 1: hash anterior não confere.", problems)
+        # Pick an amount so the recalculated hash for block 0 does not start with "00".
+        self.assertIn(
+            "Bloco 0: hash não atende à dificuldade (esperado 2 zeros no início).",
+            problems)
+        self.assertEqual(problems, [
+            "Bloco 0: hash não atende à dificuldade (esperado 2 zeros no início).",
+            "Bloco 1: hash anterior não confere.",
+        ])
+
+    def test_tamper_without_recalculating_at_difficulty_two_still_breaks_block_hash(self):
+        chain = build_chain(2, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, False)
+        self.assertEqual(
+            validate_chain(tampered, 2),
+            ["Bloco 0: hash do bloco não confere."])
 
     def test_multiple_problems_are_all_reported(self):
         chain = build_chain(3)
         tampered = tamper_block(chain, 0, 0, 99.0, False)
         tampered = tamper_block(tampered, 1, 0, 99.0, False)
         self.assertEqual(
-            validate_chain(tampered),
+            validate_chain(tampered, 0),
             ["Bloco 0: hash do bloco não confere.",
              "Bloco 1: hash do bloco não confere."])
 
@@ -197,7 +239,7 @@ class ValidateChainTests(unittest.TestCase):
                  0,
                  calculate_block_hash(5, transactions, GENESIS_PREVIOUS_HASH, 0))
         self.assertEqual(
-            validate_chain([block]),
+            validate_chain([block], 0),
             ["Bloco 0: índice incorreto (esperado 0, encontrado 5)."])
 
     def test_wrong_genesis_previous_hash(self):
@@ -206,12 +248,12 @@ class ValidateChainTests(unittest.TestCase):
                  0,
                  calculate_block_hash(0, transactions, "1" * 64, 0))
         self.assertEqual(
-            validate_chain([block]), ["Bloco 0: hash anterior não confere."])
+            validate_chain([block], 0), ["Bloco 0: hash anterior não confere."])
 
     def test_does_not_modify_chain(self):
         chain = build_chain(2)
         snapshot = list(chain)
-        validate_chain(chain)
+        validate_chain(chain, 0)
         self.assertEqual(chain, snapshot)
 
 

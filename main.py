@@ -60,7 +60,7 @@ def create_block(blockchain, transactions, difficulty):
     return (index, block_transactions, previous_hash, nonce, block_hash)
 
 
-def validate_chain(blockchain):
+def validate_chain(blockchain, difficulty):
     """Return a list of problem messages (Portuguese); empty means valid."""
     problems = []
     for position, block in enumerate(blockchain):
@@ -72,6 +72,11 @@ def validate_chain(blockchain):
             )
         if block_hash != calculate_block_hash(index, transactions, previous_hash, nonce):
             problems.append(f"Bloco {position}: hash do bloco não confere.")
+        if not block_hash.startswith("0" * difficulty):
+            problems.append(
+                f"Bloco {position}: hash não atende à dificuldade "
+                f"(esperado {difficulty} zeros no início)."
+            )
         if position == 0:
             expected_previous = GENESIS_PREVIOUS_HASH
         else:
@@ -210,7 +215,7 @@ def main():
                 if blockchain == []:
                     print("A blockchain ainda está vazia!!")
                 else:
-                    problems = validate_chain(blockchain)
+                    problems = validate_chain(blockchain, DEFAULT_DIFFICULTY)
                     if problems == []:
                         print("Blockchain válida.")
                     else:
