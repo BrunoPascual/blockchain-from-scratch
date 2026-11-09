@@ -9,7 +9,6 @@ GENESIS_PREVIOUS_HASH = "0" * 64
 DEFAULT_DIFFICULTY = 4
 MAX_DIFFICULTY = 5
 
-
 def calculate_block_hash(index, transactions, previous_hash, nonce):
     """Return the SHA-256 hash (64 hex characters) of a block's content."""
     content = json.dumps(
@@ -392,7 +391,7 @@ def menu_full_attack(state):
 
 
 def menu_change_difficulty(state):
-    """Option 7: change the difficulty (only while the chain is empty)."""
+    """Option 8: change the difficulty (only while the chain is empty)."""
     pending_transactions, blockchain, difficulty = state
     print_title("Alterar dificuldade")
     if blockchain != []:
