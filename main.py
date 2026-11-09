@@ -1,107 +1,129 @@
 ######### BLOCKCHAIN FROM SCRATCH #########
+import math
 
-lista_menu = [      # Opções do menu
-    "Nova transação", 
+MAX_TRANSACTIONS_PER_BLOCK = 3
+
+# Menu options (numbered automatically; "Sair" is always the last one)
+MENU_OPTIONS = [
+    "Nova transação",
     "Mostrar transações pendentes",
-    "Criar bloco", 
-    "Mostrar blockchain"]
-transacoes_pendentes = []       # ainda não entraram em bloco
-blockchain = []     #blocos já registrados
+    "Criar bloco",
+    "Mostrar blockchain",
+]
+EXIT_OPTION = len(MENU_OPTIONS) + 1
 
-while True:
-    # Menu de navegação
-    print( "====== MINI BLOCKCHAIN ====== \n" 
+pending_transactions = []       # not yet included in a block
+blockchain = []                 # blocks already registered
 
-    "1 - Nova transação \n"
-    "2 - Mostrar transações pendentes \n"
-    "3 - Criar bloco \n"
-    "4 - Mostrar blockchain \n"
-    "5 - Sair")
-                    
-    menu = int(input("Digite como deseja navegar pelo menu: "))
-    
-    if menu == 5:       # Encerrar programa
-        print("finalizando...")
-        break
-    elif menu == 1:     
-        print("Entrando em Nova transação...")
-        # bloco de nova transação
-        if menu == 1:
-            remetente = input("Remetente: ")
-            destinatario = input("Destinatário: ")
-            valor = float(input("Valor: "))
-            if remetente == "" or destinatario == "":
+try:
+    while True:
+        # Navigation menu
+        print("====== MINI BLOCKCHAIN ======")
+        for number, text in enumerate(MENU_OPTIONS, start=1):
+            print(f"{number} - {text}")
+        print(f"{EXIT_OPTION} - Sair")
+
+        raw_choice = input("Digite como deseja navegar pelo menu: ")
+        try:
+            choice = int(raw_choice)
+        except ValueError:
+            print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
+            continue
+
+        if choice == EXIT_OPTION:       # Quit program
+            print("finalizando...")
+            break
+        elif choice == 1:
+            print("Entrando em Nova transação...")
+            sender = input("Remetente: ").strip()
+            receiver = input("Destinatário: ").strip()
+            raw_amount = input("Valor: ")
+            try:
+                amount = float(raw_amount)
+            except ValueError:
+                print("Valor inválido. Digite um número.")
+                continue
+
+            if sender == "" or receiver == "":
                 print("Remetente e destinatário não podem estar vazios.")
 
-            elif remetente == destinatario:
+            elif sender == receiver:
                 print("Remetente e destinatário não podem ser iguais.")
 
-            elif valor <= 0:
+            elif not math.isfinite(amount):
+                print("Valor inválido. Digite um número.")
+
+            elif amount <= 0:
                 print("O valor da transação deve ser maior que zero.")
 
-            else: 
-                transacao = (remetente, destinatario, valor)
-                transacoes_pendentes.append(transacao)
-                print(
-                        f"Transação adicionada: "
-                        f"{remetente} -> {destinatario}: {valor:.2f}"
-                    )
-    elif menu == 2:
-        print("Entrando em Mostrar transações pendentes...")
-        if len(transacoes_pendentes) == 0:
-            print("Não há transações pendentes.")
-        else:
-            print(f"As transações pendentes são: ")
-            for x in transacoes_pendentes:
-                print(x)
-    elif menu == 3:
-        print("Entrando em Criar bloco...")
-
-        if len(transacoes_pendentes) == 0:
-            print("Não há transações pendentes para criar um bloco.")
-
-        else:
-            transacoes_bloco = []
-
-            while len(transacoes_bloco) < 3 and len(transacoes_pendentes) > 0:
-                transacao = transacoes_pendentes.pop(0)
-                transacoes_bloco.append(transacao)
-
-            if blockchain == []:
-                referencia_anterior = "GENESIS"
             else:
-                referencia_anterior = f"BLOCO {len(blockchain) - 1}"
+                transaction = (sender, receiver, amount)
+                pending_transactions.append(transaction)
+                print(
+                    f"Transação adicionada: "
+                    f"{sender} -> {receiver}: {amount:.2f}"
+                )
+        elif choice == 2:
+            print("Entrando em Mostrar transações pendentes...")
+            if len(pending_transactions) == 0:
+                print("Não há transações pendentes.")
+            else:
+                print("As transações pendentes são: ")
+                for transaction in pending_transactions:
+                    print(transaction)
+        elif choice == 3:
+            print("Entrando em Criar bloco...")
 
-            bloco = (
-                len(blockchain),
-                tuple(transacoes_bloco),
-                referencia_anterior
-            )
+            if len(pending_transactions) == 0:
+                print("Não há transações pendentes para criar um bloco.")
 
-            blockchain.append(bloco)
+            else:
+                block_transactions = []
 
-            print(
-                f"BLOCO {len(blockchain) - 1} criado com sucesso "
-                f"com {len(transacoes_bloco)} transações."
-            )
-    elif menu == 4:
-        print("Entrando em Mostrar blockchain...") 
-        if blockchain == []:
-            print("A blockchain ainda está vazia!!")
-        else:
-            print("\n========== BLOCKCHAIN ==========")
-            for bloco in blockchain:
-                print(f"\nBLOCO {bloco[0]}")
-                print(f"Referência anterior: {bloco[2]}")
-                print("Transações:")
-                
-                for transacao in bloco[1]:
-                    print(
-                        f"{transacao[0]} -> "
-                        f"{transacao[1]}: "
-                        f"{transacao[2]:.2f}"
-                    )
+                while (
+                    len(block_transactions) < MAX_TRANSACTIONS_PER_BLOCK
+                    and len(pending_transactions) > 0
+                ):
+                    transaction = pending_transactions.pop(0)
+                    block_transactions.append(transaction)
 
-                print("-------------------------------")
-    else:       # Opção inválida
-        print("Opção inválida. Digite um número entre 1 e 5.")
+                if blockchain == []:
+                    previous_reference = "GENESIS"
+                else:
+                    previous_reference = f"BLOCO {len(blockchain) - 1}"
+
+                block = (
+                    len(blockchain),
+                    tuple(block_transactions),
+                    previous_reference
+                )
+
+                blockchain.append(block)
+
+                print(
+                    f"BLOCO {len(blockchain) - 1} criado com sucesso "
+                    f"com {len(block_transactions)} transações."
+                )
+        elif choice == 4:
+            print("Entrando em Mostrar blockchain...")
+            if blockchain == []:
+                print("A blockchain ainda está vazia!!")
+            else:
+                print("\n========== BLOCKCHAIN ==========")
+                for block in blockchain:
+                    print(f"\nBLOCO {block[0]}")
+                    print(f"Referência anterior: {block[2]}")
+                    print("Transações:")
+
+                    for transaction in block[1]:
+                        print(
+                            f"{transaction[0]} -> "
+                            f"{transaction[1]}: "
+                            f"{transaction[2]:.2f}"
+                        )
+
+                    print("-------------------------------")
+        else:       # Invalid option
+            print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
+except (KeyboardInterrupt, EOFError):
+    print("\nfinalizando...")
