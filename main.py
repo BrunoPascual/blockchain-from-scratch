@@ -9,6 +9,7 @@ GENESIS_PREVIOUS_HASH = "0" * 64
 DEFAULT_DIFFICULTY = 4
 MAX_DIFFICULTY = 5
 
+
 def calculate_block_hash(index, transactions, previous_hash, nonce):
     """Return the SHA-256 hash (64 hex characters) of a block's content."""
     content = json.dumps(
@@ -98,7 +99,7 @@ TITLE_LINE = "=" * 40
 
 
 def print_title(text):
-    """Print a centered title framed by TITLE_LINE."""
+    """Print a title framed by TITLE_LINE, preceded by a blank line."""
     print("")
     print(TITLE_LINE)
     print(text)
@@ -131,59 +132,51 @@ def transactions_word(count):
 def menu_new_transaction(state):
     """Option 1: read a transaction and add it to the pending list."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Nova transação...")
+    print_title("Nova transação")
     sender = input("Remetente: ").strip()
     receiver = input("Destinatário: ").strip()
     raw_amount = input("Valor: ")
     try:
         amount = float(raw_amount)
     except ValueError:
-        print("Valor inválido. Digite um número.")
+        print_error("Valor inválido. Digite um número.")
         return state
 
     if sender == "" or receiver == "":
-        print("Remetente e destinatário não podem estar vazios.")
-
+        print_error("Remetente e destinatário não podem estar vazios.")
     elif sender == receiver:
-        print("Remetente e destinatário não podem ser iguais.")
-
+        print_error("Remetente e destinatário não podem ser iguais.")
     elif not math.isfinite(amount):
-        print("Valor inválido. Digite um número.")
-
+        print_error("Valor inválido. Digite um número.")
     elif amount <= 0:
-        print("O valor da transação deve ser maior que zero.")
-
+        print_error("O valor da transação deve ser maior que zero.")
     else:
         transaction = (sender, receiver, amount)
         pending_transactions.append(transaction)
-        print(
-            f"Transação adicionada: "
-            f"{sender} -> {receiver}: {amount:.2f}"
-        )
+        print(f"Transação adicionada: {format_transaction(transaction)}")
     return (pending_transactions, blockchain, difficulty)
 
 
 def menu_show_pending(state):
     """Option 2: show the transactions waiting for a block."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Mostrar transações pendentes...")
+    print_title("Mostrar transações pendentes")
     if len(pending_transactions) == 0:
         print("Não há transações pendentes.")
     else:
-        print("As transações pendentes são: ")
-        for transaction in pending_transactions:
-            print(transaction)
+        print("As transações pendentes são:")
+        for number, transaction in enumerate(pending_transactions, start=1):
+            print(f"{number} - {format_transaction(transaction)}")
     return state
 
 
 def menu_create_block(state):
     """Option 3: mine a block with the oldest pending transactions."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Criar bloco...")
+    print_title("Criar bloco")
 
     if len(pending_transactions) == 0:
-        print("Não há transações pendentes para criar um bloco.")
-
+        print_error("Não há transações pendentes para criar um bloco.")
     else:
         block_transactions = []
 
@@ -203,9 +196,10 @@ def menu_create_block(state):
 
         blockchain.append(block)
 
+        transaction_count = len(block_transactions)
         print(
             f"BLOCO {len(blockchain) - 1} criado com sucesso "
-            f"com {len(block_transactions)} transações."
+            f"com {transaction_count} {transactions_word(transaction_count)}."
         )
         print(
             f"Nonce encontrado: {nonce} "
@@ -217,37 +211,31 @@ def menu_create_block(state):
 def menu_show_blockchain(state):
     """Option 4: show every block of the chain."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Mostrar blockchain...")
+    print_title("Mostrar blockchain")
     if blockchain == []:
         print("A blockchain ainda está vazia!!")
     else:
-        print("\n========== BLOCKCHAIN ==========")
-        print(
-            f"Dificuldade: {difficulty} "
-            f"(o hash deve começar com {difficulty} zeros)"
+        print_field(
+            "Dificuldade",
+            f"{difficulty} (o hash deve começar com {difficulty} zeros)",
         )
         for block in blockchain:
-            print(f"\nBLOCO {block[0]}")
-            print(f"Hash anterior: {block[2]}")
-            print(f"Nonce: {block[3]}")
-            print(f"Hash: {block[4]}")
+            print("")
+            print(f"BLOCO {block[0]}")
+            print_field("Hash anterior", block[2])
+            print_field("Nonce", block[3])
+            print_field("Hash", block[4])
             print("Transações:")
 
             for transaction in block[1]:
-                print(
-                    f"{transaction[0]} -> "
-                    f"{transaction[1]}: "
-                    f"{transaction[2]:.2f}"
-                )
-
-            print("-------------------------------")
+                print(f"  {format_transaction(transaction)}")
     return state
 
 
 def menu_validate(state):
     """Option 5: validate the chain and list the problems found."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Validar blockchain...")
+    print_title("Validar blockchain")
     if blockchain == []:
         print("A blockchain ainda está vazia!!")
     else:
@@ -264,7 +252,7 @@ def menu_validate(state):
 def menu_tamper(state):
     """Option 6: change a transaction amount of a block."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Simular adulteração...")
+    print_title("Simular adulteração")
     if blockchain == []:
         print("A blockchain ainda está vazia!!")
         return state
@@ -272,35 +260,32 @@ def menu_tamper(state):
     try:
         block_position = int(input("Número do bloco: "))
     except ValueError:
-        print("Bloco inválido.")
+        print_error("Bloco inválido.")
         return state
     if block_position < 0 or block_position >= len(blockchain):
-        print("Bloco inválido.")
+        print_error("Bloco inválido.")
         return state
 
     for number, transaction in enumerate(blockchain[block_position][1], start=1):
-        print(
-            f"{number} - {transaction[0]} -> "
-            f"{transaction[1]}: {transaction[2]:.2f}"
-        )
+        print(f"{number} - {format_transaction(transaction)}")
 
     try:
         transaction_number = int(input("Número da transação: "))
     except ValueError:
-        print("Transação inválida.")
+        print_error("Transação inválida.")
         return state
     if (transaction_number < 1
             or transaction_number > len(blockchain[block_position][1])):
-        print("Transação inválida.")
+        print_error("Transação inválida.")
         return state
 
     try:
         new_amount = float(input("Novo valor: "))
     except ValueError:
-        print("Valor inválido. Digite um número.")
+        print_error("Valor inválido. Digite um número.")
         return state
     if not math.isfinite(new_amount):
-        print("Valor inválido. Digite um número.")
+        print_error("Valor inválido. Digite um número.")
         return state
 
     answer = input("Recalcular o hash do bloco? (s/n): ")
@@ -320,9 +305,9 @@ def menu_tamper(state):
 def menu_change_difficulty(state):
     """Option 7: change the difficulty (only while the chain is empty)."""
     pending_transactions, blockchain, difficulty = state
-    print("Entrando em Alterar dificuldade...")
+    print_title("Alterar dificuldade")
     if blockchain != []:
-        print(
+        print_error(
             "A dificuldade só pode ser alterada com a blockchain vazia."
         )
         return state
@@ -334,7 +319,7 @@ def menu_change_difficulty(state):
     except ValueError:
         new_difficulty = None
     if new_difficulty is None or not 0 <= new_difficulty <= MAX_DIFFICULTY:
-        print(
+        print_error(
             f"Dificuldade inválida. Digite um número entre 0 e "
             f"{MAX_DIFFICULTY}."
         )
@@ -363,7 +348,7 @@ def main():
     try:
         while True:
             # Navigation menu
-            print("====== MINI BLOCKCHAIN ======")
+            print_title("MINI BLOCKCHAIN")
             for number, (text, _) in enumerate(MENU, start=1):
                 print(f"{number} - {text}")
             print(f"{EXIT_OPTION} - Sair")
@@ -372,7 +357,9 @@ def main():
             try:
                 choice = int(raw_choice)
             except ValueError:
-                print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
+                print_error(
+                    f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}."
+                )
                 continue
 
             if choice == EXIT_OPTION:       # Quit program
@@ -381,7 +368,9 @@ def main():
             elif 1 <= choice < EXIT_OPTION:
                 state = MENU[choice - 1][1](state)
             else:      # Invalid option
-                print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
+                print_error(
+                    f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}."
+                )
     except (KeyboardInterrupt, EOFError):
         print("\nfinalizando...")
 
