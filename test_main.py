@@ -12,11 +12,16 @@ from main import (
     MAX_DIFFICULTY,
     calculate_block_hash,
     create_block,
+    format_transaction,
     main,
     menu_change_difficulty,
     menu_create_block,
     mine_block,
+    print_error,
+    print_field,
+    print_title,
     tamper_block,
+    transactions_word,
     validate_chain,
 )
 
@@ -292,6 +297,47 @@ class TamperBlockTests(unittest.TestCase):
         self.assertEqual(
             block[4], calculate_block_hash(block[0], block[1], block[2], block[3]))
         self.assertNotEqual(block[4], chain[1][4])
+
+
+class OutputHelperTests(unittest.TestCase):
+    def test_print_title(self):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            print_title("Criar bloco")
+        expected = "\n" + "=" * 40 + "\nCriar bloco\n" + "=" * 40 + "\n"
+        self.assertEqual(buffer.getvalue(), expected)
+
+    def test_print_field_nonce(self):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            print_field("Nonce", 42)
+        self.assertEqual(buffer.getvalue(), "Nonce         : 42\n")
+
+    def test_print_field_hash_anterior(self):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            print_field("Hash anterior", "abc")
+        self.assertEqual(buffer.getvalue(), "Hash anterior : abc\n")
+
+    def test_print_error(self):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            print_error("Bloco inválido.")
+        self.assertEqual(buffer.getvalue(), "Erro: Bloco inválido.\n")
+
+    def test_format_transaction(self):
+        self.assertEqual(
+            format_transaction(("Ana", "Bob", 10)), "Ana -> Bob: 10.00"
+        )
+
+    def test_transactions_word_singular(self):
+        self.assertEqual(transactions_word(1), "transação")
+
+    def test_transactions_word_plural_zero(self):
+        self.assertEqual(transactions_word(0), "transações")
+
+    def test_transactions_word_plural_three(self):
+        self.assertEqual(transactions_word(3), "transações")
 
 
 MENU_TEXT = (

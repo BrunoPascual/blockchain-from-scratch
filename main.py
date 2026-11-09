@@ -94,6 +94,40 @@ def tamper_block(blockchain, block_position, transaction_position,
     return result
 
 
+TITLE_LINE = "=" * 40
+
+
+def print_title(text):
+    """Print a centered title framed by TITLE_LINE."""
+    print("")
+    print(TITLE_LINE)
+    print(text)
+    print(TITLE_LINE)
+
+
+def print_field(label, value):
+    """Print a label/value pair with aligned labels."""
+    print(f"{label:<13} : {value}")
+
+
+def print_error(text):
+    """Print an error message with the standard prefix."""
+    print(f"Erro: {text}")
+
+
+def format_transaction(transaction):
+    """Return a formatted string for a transaction tuple."""
+    sender, receiver, amount = transaction
+    return f"{sender} -> {receiver}: {amount:.2f}"
+
+
+def transactions_word(count):
+    """Return the correct Portuguese word for the number of transactions."""
+    if count == 1:
+        return "transação"
+    return "transações"
+
+
 def menu_new_transaction(state):
     """Option 1: read a transaction and add it to the pending list."""
     pending_transactions, blockchain, difficulty = state
