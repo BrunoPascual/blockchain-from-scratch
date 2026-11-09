@@ -141,10 +141,19 @@ class ValidateChainTests(unittest.TestCase):
         self.assertEqual(
             validate_chain(tampered), ["Bloco 1: hash anterior não confere."])
 
+    def test_multiple_problems_are_all_reported(self):
+        chain = build_chain(3)
+        tampered = tamper_block(chain, 0, 0, 99.0, False)
+        tampered = tamper_block(tampered, 1, 0, 99.0, False)
+        self.assertEqual(
+            validate_chain(tampered),
+            ["Bloco 0: hash do bloco não confere.",
+             "Bloco 1: hash do bloco não confere."])
+
     def test_wrong_index_message(self):
-        block = (5, (("Ana", "Bob", 1.0),), GENESIS_PREVIOUS_HASH, "x")
-        block = (5, block[1], block[2],
-                 calculate_block_hash(5, block[1], block[2]))
+        transactions = (("Ana", "Bob", 1.0),)
+        block = (5, transactions, GENESIS_PREVIOUS_HASH,
+                 calculate_block_hash(5, transactions, GENESIS_PREVIOUS_HASH))
         self.assertEqual(
             validate_chain([block]),
             ["Bloco 0: índice incorreto (esperado 0, encontrado 5)."])
