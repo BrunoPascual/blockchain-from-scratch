@@ -95,6 +95,29 @@ def tamper_block(blockchain, block_position, transaction_position,
     return result
 
 
+def remine_chain(blockchain, start_position, difficulty):
+    """Return a NEW chain with blocks from start_position re-mined.
+
+    Blocks before start_position are shared with the input list. Each
+    re-mined block keeps its index and transactions; its previous_hash is
+    linked to the new chain and a fresh nonce/hash is found with mine_block.
+    The input list and its tuples are never modified.
+    """
+    new_chain = list(blockchain[:start_position])
+    attempts = []
+    for position in range(start_position, len(blockchain)):
+        index, transactions, _, _, _ = blockchain[position]
+        if position == 0:
+            previous_hash = GENESIS_PREVIOUS_HASH
+        else:
+            previous_hash = new_chain[position - 1][4]
+        nonce, block_hash = mine_block(
+            index, transactions, previous_hash, difficulty)
+        new_chain.append((index, transactions, previous_hash, nonce, block_hash))
+        attempts.append(nonce + 1)
+    return new_chain, attempts
+
+
 TITLE_LINE = "=" * 40
 
 

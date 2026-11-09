@@ -20,6 +20,7 @@ from main import (
     print_error,
     print_field,
     print_title,
+    remine_chain,
     tamper_block,
     transactions_word,
     validate_chain,
@@ -297,6 +298,61 @@ class TamperBlockTests(unittest.TestCase):
         self.assertEqual(
             block[4], calculate_block_hash(block[0], block[1], block[2], block[3]))
         self.assertNotEqual(block[4], chain[1][4])
+
+
+class RemineChainTests(unittest.TestCase):
+    def test_remine_from_zero_makes_chain_valid(self):
+        chain = build_chain(3, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        new_chain, attempts = remine_chain(tampered, 0, 2)
+        self.assertEqual(validate_chain(new_chain, 2), [])
+        self.assertEqual(len(attempts), 3)
+
+    def test_attempts_equal_nonce_plus_one(self):
+        chain = build_chain(3, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        new_chain, attempts = remine_chain(tampered, 0, 2)
+        for i, block in enumerate(new_chain):
+            self.assertEqual(attempts[i], block[3] + 1)
+
+    def test_remine_from_one_keeps_first_block(self):
+        chain = build_chain(3, 2)
+        new_chain, attempts = remine_chain(chain, 1, 2)
+        self.assertIs(new_chain[0], chain[0])
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(validate_chain(new_chain, 2), [])
+
+    def test_remine_last_position_only(self):
+        chain = build_chain(3, 2)
+        tampered = tamper_block(chain, 2, 0, 99.0, True)
+        new_chain, attempts = remine_chain(tampered, 2, 2)
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(validate_chain(new_chain, 2), [])
+
+    def test_difficulty_zero_attempts_are_one(self):
+        chain = build_chain(3, 0)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        new_chain, attempts = remine_chain(tampered, 0, 0)
+        self.assertEqual(attempts, [1, 1, 1])
+        self.assertEqual(validate_chain(new_chain, 0), [])
+
+    def test_does_not_modify_input(self):
+        chain = build_chain(3, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        snapshot = list(tampered)
+        block_snapshots = [list(block) for block in tampered]
+        remine_chain(tampered, 0, 2)
+        self.assertEqual(tampered, snapshot)
+        for original, snapshot_block in zip(tampered, block_snapshots):
+            self.assertEqual(list(original), snapshot_block)
+
+    def test_keeps_index_and_transactions(self):
+        chain = build_chain(3, 2)
+        tampered = tamper_block(chain, 0, 0, 99.0, True)
+        new_chain, _ = remine_chain(tampered, 0, 2)
+        for new_block, original_block in zip(new_chain, tampered):
+            self.assertEqual(new_block[0], original_block[0])
+            self.assertEqual(new_block[1], original_block[1])
 
 
 class OutputHelperTests(unittest.TestCase):
