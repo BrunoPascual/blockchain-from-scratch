@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import time
 
 MAX_TRANSACTIONS_PER_BLOCK = 3
 GENESIS_PREVIOUS_HASH = "0" * 64
@@ -16,6 +17,7 @@ MENU_OPTIONS = [
     "Mostrar blockchain",
     "Validar blockchain",
     "Simular adulteração",
+    "Alterar dificuldade",
 ]
 EXIT_OPTION = len(MENU_OPTIONS) + 1
 
@@ -108,6 +110,7 @@ def tamper_block(blockchain, block_position, transaction_position,
 def main():
     pending_transactions = []       # not yet included in a block
     blockchain = []                 # blocks already registered
+    difficulty = DEFAULT_DIFFICULTY
 
     try:
         while True:
@@ -181,8 +184,12 @@ def main():
                         transaction = pending_transactions.pop(0)
                         block_transactions.append(transaction)
 
+                    print(f"Minerando bloco com dificuldade {difficulty}...")
+                    start = time.perf_counter()
                     block = create_block(
-                        blockchain, block_transactions, DEFAULT_DIFFICULTY)
+                        blockchain, block_transactions, difficulty)
+                    elapsed = time.perf_counter() - start
+                    nonce = block[3]
 
                     blockchain.append(block)
 
@@ -190,15 +197,24 @@ def main():
                         f"BLOCO {len(blockchain) - 1} criado com sucesso "
                         f"com {len(block_transactions)} transações."
                     )
+                    print(
+                        f"Nonce encontrado: {nonce} "
+                        f"({nonce + 1} tentativas em {elapsed:.2f} s)."
+                    )
             elif choice == 4:
                 print("Entrando em Mostrar blockchain...")
                 if blockchain == []:
                     print("A blockchain ainda está vazia!!")
                 else:
                     print("\n========== BLOCKCHAIN ==========")
+                    print(
+                        f"Dificuldade: {difficulty} "
+                        f"(o hash deve começar com {difficulty} zeros)"
+                    )
                     for block in blockchain:
                         print(f"\nBLOCO {block[0]}")
                         print(f"Hash anterior: {block[2]}")
+                        print(f"Nonce: {block[3]}")
                         print(f"Hash: {block[4]}")
                         print("Transações:")
 
@@ -215,7 +231,7 @@ def main():
                 if blockchain == []:
                     print("A blockchain ainda está vazia!!")
                 else:
-                    problems = validate_chain(blockchain, DEFAULT_DIFFICULTY)
+                    problems = validate_chain(blockchain, difficulty)
                     if problems == []:
                         print("Blockchain válida.")
                     else:
@@ -273,6 +289,32 @@ def main():
                     f"Bloco {block_position} adulterado. "
                     f"Use a opção 5 para validar a blockchain."
                 )
+            elif choice == 7:
+                print("Entrando em Alterar dificuldade...")
+                if blockchain != []:
+                    print(
+                        "A dificuldade só pode ser alterada com a blockchain vazia."
+                    )
+                    continue
+                print(f"Dificuldade atual: {difficulty}")
+                raw_difficulty = input(
+                    f"Nova dificuldade (0 a {MAX_DIFFICULTY}): ")
+                try:
+                    new_difficulty = int(raw_difficulty)
+                except ValueError:
+                    print(
+                        f"Dificuldade inválida. Digite um número entre 0 e "
+                        f"{MAX_DIFFICULTY}."
+                    )
+                    continue
+                if new_difficulty < 0 or new_difficulty > MAX_DIFFICULTY:
+                    print(
+                        f"Dificuldade inválida. Digite um número entre 0 e "
+                        f"{MAX_DIFFICULTY}."
+                    )
+                    continue
+                difficulty = new_difficulty
+                print(f"Dificuldade alterada para {difficulty}.")
             else:      # Invalid option
                 print(f"Opção inválida. Digite um número entre 1 e {EXIT_OPTION}.")
     except (KeyboardInterrupt, EOFError):
