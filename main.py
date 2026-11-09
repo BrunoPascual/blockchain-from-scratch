@@ -26,6 +26,21 @@ def calculate_block_hash(index, transactions, previous_hash):
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def create_block(blockchain, transactions):
+    """Return a new block (index, transactions, previous_hash, block_hash).
+
+    The blockchain list is only read, never changed; the caller appends.
+    """
+    index = len(blockchain)
+    if blockchain == []:
+        previous_hash = GENESIS_PREVIOUS_HASH
+    else:
+        previous_hash = blockchain[-1][3]
+    block_transactions = tuple(transactions)
+    block_hash = calculate_block_hash(index, block_transactions, previous_hash)
+    return (index, block_transactions, previous_hash, block_hash)
+
+
 def main():
     pending_transactions = []       # not yet included in a block
     blockchain = []                 # blocks already registered
@@ -102,16 +117,7 @@ def main():
                         transaction = pending_transactions.pop(0)
                         block_transactions.append(transaction)
 
-                    if blockchain == []:
-                        previous_reference = "GENESIS"
-                    else:
-                        previous_reference = f"BLOCO {len(blockchain) - 1}"
-
-                    block = (
-                        len(blockchain),
-                        tuple(block_transactions),
-                        previous_reference
-                    )
+                    block = create_block(blockchain, block_transactions)
 
                     blockchain.append(block)
 
@@ -127,7 +133,8 @@ def main():
                     print("\n========== BLOCKCHAIN ==========")
                     for block in blockchain:
                         print(f"\nBLOCO {block[0]}")
-                        print(f"Referência anterior: {block[2]}")
+                        print(f"Hash anterior: {block[2]}")
+                        print(f"Hash: {block[3]}")
                         print("Transações:")
 
                         for transaction in block[1]:
