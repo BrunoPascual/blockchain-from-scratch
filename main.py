@@ -5,6 +5,8 @@ import math
 
 MAX_TRANSACTIONS_PER_BLOCK = 3
 GENESIS_PREVIOUS_HASH = "0" * 64
+DEFAULT_DIFFICULTY = 4
+MAX_DIFFICULTY = 5
 
 # Menu options (numbered automatically; "Sair" is always the last one)
 MENU_OPTIONS = [
@@ -18,18 +20,32 @@ MENU_OPTIONS = [
 EXIT_OPTION = len(MENU_OPTIONS) + 1
 
 
-def calculate_block_hash(index, transactions, previous_hash):
+def calculate_block_hash(index, transactions, previous_hash, nonce):
     """Return the SHA-256 hash (64 hex characters) of a block's content."""
     content = json.dumps(
-        [index, [list(t) for t in transactions], previous_hash],
+        [index, [list(t) for t in transactions], previous_hash, nonce],
         separators=(",", ":"),
         ensure_ascii=False,
     )
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def create_block(blockchain, transactions):
-    """Return a new block (index, transactions, previous_hash, block_hash).
+def mine_block(index, transactions, previous_hash, difficulty):
+    """Return (nonce, block_hash) for the first nonce that meets the difficulty.
+
+    Nonces are tried in order starting at 0. The number of attempts is nonce + 1.
+    """
+    nonce = 0
+    target = "0" * difficulty
+    while True:
+        block_hash = calculate_block_hash(index, transactions, previous_hash, nonce)
+        if block_hash.startswith(target):
+            return nonce, block_hash
+        nonce += 1
+
+
+def create_block(blockchain, transactions, difficulty):
+    """Return a new block (index, transactions, previous_hash, nonce, block_hash).
 
     The blockchain list is only read, never changed; the caller appends.
     """
@@ -37,28 +53,29 @@ def create_block(blockchain, transactions):
     if blockchain == []:
         previous_hash = GENESIS_PREVIOUS_HASH
     else:
-        previous_hash = blockchain[-1][3]
+        previous_hash = blockchain[-1][4]
     block_transactions = tuple(transactions)
-    block_hash = calculate_block_hash(index, block_transactions, previous_hash)
-    return (index, block_transactions, previous_hash, block_hash)
+    nonce, block_hash = mine_block(
+        index, block_transactions, previous_hash, difficulty)
+    return (index, block_transactions, previous_hash, nonce, block_hash)
 
 
 def validate_chain(blockchain):
     """Return a list of problem messages (Portuguese); empty means valid."""
     problems = []
     for position, block in enumerate(blockchain):
-        index, transactions, previous_hash, block_hash = block
+        index, transactions, previous_hash, nonce, block_hash = block
         if index != position:
             problems.append(
                 f"Bloco {position}: índice incorreto "
                 f"(esperado {position}, encontrado {index})."
             )
-        if block_hash != calculate_block_hash(index, transactions, previous_hash):
+        if block_hash != calculate_block_hash(index, transactions, previous_hash, nonce):
             problems.append(f"Bloco {position}: hash do bloco não confere.")
         if position == 0:
             expected_previous = GENESIS_PREVIOUS_HASH
         else:
-            expected_previous = blockchain[position - 1][3]
+            expected_previous = blockchain[position - 1][4]
         if previous_hash != expected_previous:
             problems.append(f"Bloco {position}: hash anterior não confere.")
     return problems
@@ -71,15 +88,15 @@ def tamper_block(blockchain, block_position, transaction_position,
     Simulates an attacker, so any finite amount is accepted. The input list
     and its tuples are never modified. Positions must already be valid.
     """
-    index, transactions, previous_hash, block_hash = blockchain[block_position]
+    index, transactions, previous_hash, nonce, block_hash = blockchain[block_position]
     sender, receiver, _ = transactions[transaction_position]
     new_transactions = list(transactions)
     new_transactions[transaction_position] = (sender, receiver, float(new_amount))
     new_transactions = tuple(new_transactions)
     if recalculate_hash:
-        block_hash = calculate_block_hash(index, new_transactions, previous_hash)
+        block_hash = calculate_block_hash(index, new_transactions, previous_hash, nonce)
     result = list(blockchain)
-    result[block_position] = (index, new_transactions, previous_hash, block_hash)
+    result[block_position] = (index, new_transactions, previous_hash, nonce, block_hash)
     return result
 
 
@@ -159,7 +176,8 @@ def main():
                         transaction = pending_transactions.pop(0)
                         block_transactions.append(transaction)
 
-                    block = create_block(blockchain, block_transactions)
+                    block = create_block(
+                        blockchain, block_transactions, DEFAULT_DIFFICULTY)
 
                     blockchain.append(block)
 
@@ -176,7 +194,7 @@ def main():
                     for block in blockchain:
                         print(f"\nBLOCO {block[0]}")
                         print(f"Hash anterior: {block[2]}")
-                        print(f"Hash: {block[3]}")
+                        print(f"Hash: {block[4]}")
                         print("Transações:")
 
                         for transaction in block[1]:
