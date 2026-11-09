@@ -14,9 +14,10 @@ The project focuses on:
 - storing blocks in a blockchain;
 - displaying the blockchain structure;
 - linking blocks with SHA-256 hashes (v0.2);
-- validating the chain and simulating tampering (v0.3).
+- validating the chain and simulating tampering (v0.3);
+- mining blocks with a simplified Proof of Work and a configurable difficulty (v0.4).
 
-A future version will introduce Proof of Work.
+The next version (v1.0) will polish the simulator into a complete educational blockchain.
 
 ## Project Structure
 
@@ -32,7 +33,7 @@ Block 2
 ...
 ```
 
-Each block stores transactions and the SHA-256 hash of the previous block, which links the blocks together.
+Each block stores transactions, the SHA-256 hash of the previous block (which links the blocks together) and a nonce found by mining.
 
 ## Transactions
 
@@ -70,38 +71,43 @@ pending_transactions = [
 
 ## Blocks
 
-Since v0.2, a block is a tuple:
+Since v0.4, a block is a tuple:
 
 ```text
-(index, transactions, previous_hash, block_hash)
+(index, transactions, previous_hash, nonce, block_hash)
 ```
 
 - `index`: position of the block in the chain, starting at 0;
 - `transactions`: a tuple with up to three transactions;
 - `previous_hash`: the hash of the previous block (the first block uses 64 zeros);
-- `block_hash`: the SHA-256 hash of this block's own content.
+- `nonce`: the number found by mining (see Proof of Work);
+- `block_hash`: the SHA-256 hash of this block's own content, which must start with the required number of zeros.
 
-The hash is calculated from `index`, `transactions` and `previous_hash`. These values are serialized to compact JSON (`json.dumps` with `separators=(",", ":")` and `ensure_ascii=False`), encoded as UTF-8 and hashed with SHA-256. The result is 64 lowercase hex characters. There is no timestamp, so the same block content always produces the same hash.
+The hash is calculated from `index`, `transactions`, `previous_hash` and `nonce`. These values are serialized to compact JSON (`json.dumps` with `separators=(",", ":")` and `ensure_ascii=False`), encoded as UTF-8 and hashed with SHA-256. The result is 64 lowercase hex characters. There is no timestamp, so the same block content (including the nonce) always produces the same hash, and mining the same block twice finds the same nonce.
 
 The first block (genesis) uses `"0" * 64` as its previous hash. Every later block stores the hash of the block before it.
 
-This is what the program prints for a chain with two blocks (the labels are in Portuguese: "Hash anterior" is the previous hash, "Transações" are the transactions):
+This is what the program prints (option 4) for a chain with two blocks, mined at the default difficulty of 4 (the labels are in Portuguese: "Dificuldade" is the difficulty, "Hash anterior" is the previous hash, "Transações" are the transactions):
 
 ```text
+========== BLOCKCHAIN ==========
+Dificuldade: 4 (o hash deve começar com 4 zeros)
+
 BLOCO 0
 Hash anterior: 0000000000000000000000000000000000000000000000000000000000000000
-Hash: 2773ccc05269072939b298b272c339e4eb3f8b1c9a40930dd758349689f21e12
+Nonce: 35429
+Hash: 0000edcb1910bfd98b532dc1b8326036b72454cb04310a9a4e7684e26dbbcaf8
 Transações:
 Alice -> Bruno: 10.00
 Bruno -> Carlos: 5.00
-Carlos -> Diego: 3.00
 -------------------------------
 
 BLOCO 1
-Hash anterior: 2773ccc05269072939b298b272c339e4eb3f8b1c9a40930dd758349689f21e12
-Hash: ef7fd3f04998e2ce59c344d24b25c8202a8ba657589f4d722f55687a7b2a10c5
+Hash anterior: 0000edcb1910bfd98b532dc1b8326036b72454cb04310a9a4e7684e26dbbcaf8
+Nonce: 125866
+Hash: 00007cbaf9645a4eece150dad6b37903720cc8ad320e9602562dca391becf575
 Transações:
-Diego -> Alice: 2.00
+Carlos -> Diego: 3.00
 -------------------------------
 ```
 
@@ -137,7 +143,8 @@ Example session (input typed by the user follows each prompt; the program's mess
 4 - Mostrar blockchain
 5 - Validar blockchain
 6 - Simular adulteração
-7 - Sair
+7 - Alterar dificuldade
+8 - Sair
 Digite como deseja navegar pelo menu: 1
 Entrando em Nova transação...
 Remetente: Alice
@@ -147,16 +154,20 @@ Transação adicionada: Alice -> Bruno: 10.00
 (menu is shown again)
 Digite como deseja navegar pelo menu: 3
 Entrando em Criar bloco...
+Minerando bloco com dificuldade 4...
 BLOCO 0 criado com sucesso com 1 transações.
+Nonce encontrado: 120317 (120318 tentativas em 0.45 s).
 (menu is shown again)
 Digite como deseja navegar pelo menu: 4
 Entrando em Mostrar blockchain...
 
 ========== BLOCKCHAIN ==========
+Dificuldade: 4 (o hash deve começar com 4 zeros)
 
 BLOCO 0
 Hash anterior: 0000000000000000000000000000000000000000000000000000000000000000
-Hash: <64-character SHA-256 hash of block 0>
+Nonce: 120317
+Hash: 0000d0bd363c482ba514c5fb5f5e59f757dbd999774c2cf5ff34a41933c0b0ff
 Transações:
 Alice -> Bruno: 10.00
 -------------------------------
@@ -166,10 +177,14 @@ Entrando em Validar blockchain...
 Blockchain válida.
 (menu is shown again)
 Digite como deseja navegar pelo menu: 7
+Entrando em Alterar dificuldade...
+A dificuldade só pode ser alterada com a blockchain vazia.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 8
 finalizando...
 ```
 
-The `Hash` line above is abbreviated on purpose; the program prints the full 64 hex characters (see the example in the Blocks section).
+The elapsed time (0.45 s here) depends on the computer and changes from run to run; the nonce and the hash do not, because the same block content always gives the same result.
 
 ## Running the tests
 
@@ -191,11 +206,12 @@ The program uses a terminal menu. The program's interface is in Portuguese, so t
 4 - Mostrar blockchain
 5 - Validar blockchain
 6 - Simular adulteração
-7 - Sair
+7 - Alterar dificuldade
+8 - Sair
 Digite como deseja navegar pelo menu:
 ```
 
-In English: 1 - New transaction, 2 - Show pending transactions, 3 - Create block, 4 - Show blockchain, 5 - Validate blockchain, 6 - Simulate tampering, 7 - Exit.
+In English: 1 - New transaction, 2 - Show pending transactions, 3 - Create block (mines it), 4 - Show blockchain, 5 - Validate blockchain, 6 - Simulate tampering, 7 - Change difficulty, 8 - Exit.
 
 Any other input (including text that is not a number) prints an "invalid option" message and shows the menu again.
 
@@ -220,6 +236,8 @@ Invalid transactions are rejected.
 ## Block Creation
 
 Each block can contain up to three transactions.
+
+Creating a block also mines it (see Proof of Work).
 
 Example:
 
@@ -273,6 +291,8 @@ This project applies concepts such as:
 - `if __name__ == "__main__"`;
 - SHA-256 hashing with `hashlib`;
 - JSON serialization with `json`;
+- measuring elapsed time with `time`;
+- Proof of Work: a nonce and a mining difficulty;
 - unit tests with `unittest`;
 - blockchain fundamentals.
 
@@ -302,9 +322,9 @@ This project applies concepts such as:
 
 ### Version 0.4
 
-- [ ] Add a simplified Proof of Work
-- [ ] Introduce a nonce
-- [ ] Define mining difficulty
+- [x] Add a simplified Proof of Work
+- [x] Introduce a nonce
+- [x] Define mining difficulty
 
 ### Version 1.0
 
@@ -353,11 +373,12 @@ Menu option 5 ("Validar blockchain") checks every block, in order, and reports e
 
 ```text
 index          = position of the block in the chain
-block_hash     = SHA-256 of the block's own index, transactions and previous_hash
+block_hash     = SHA-256 of the block's own index, transactions, previous_hash and nonce
+difficulty     = block_hash starts with the required number of zeros (4 by default)
 previous_hash  = hash of the previous block (64 zeros for block 0)
 ```
 
-The check is implemented by `validate_chain(blockchain)`, which returns a list of messages. An empty list means the chain is valid.
+The check is implemented by `validate_chain(blockchain, difficulty)`, which returns a list of messages. An empty list means the chain is valid.
 
 If the chain is empty, the program prints `A blockchain ainda está vazia!!`. In the example below the chain has three blocks and nothing was changed:
 
@@ -367,13 +388,13 @@ Entrando em Validar blockchain...
 Blockchain válida.
 ```
 
-When something is wrong, each problem is listed ("hash do bloco não confere" means the block's own hash does not match its content; "hash anterior não confere" means the stored previous hash does not match the previous block's hash). A wrong index is reported as "índice incorreto". The next section shows real examples.
+When something is wrong, each problem is listed ("hash do bloco não confere" means the block's own hash does not match its content; "hash anterior não confere" means the stored previous hash does not match the previous block's hash). A wrong index is reported as "índice incorreto". A hash that does not start with enough zeros is reported as "hash não atende à dificuldade" (the hash does not meet the difficulty). The next section shows real examples.
 
 ## Tampering Simulation
 
-Menu option 6 ("Simular adulteração") plays the role of an attacker. It asks for a block, a transaction inside it and a new amount, and then asks whether the block's hash should be recalculated. The change is applied to the in-memory chain (a new list is built; the original tuples are not modified). Afterwards, use option 5 to validate the chain and see what was detected.
+Menu option 6 ("Simular adulteração") plays the role of an attacker. It asks for a block, a transaction inside it and a new amount, and then asks whether the block's hash should be recalculated (recalculating reuses the block's old nonce; it does not mine again). The change is applied to the in-memory chain (a new list is built; the original tuples are not modified). Afterwards, use option 5 to validate the chain and see what was detected.
 
-All scenarios below use the same chain, built from these transactions (full hashes are not repeated here):
+All scenarios below use the same chain, mined at the default difficulty of 4 and built from these transactions (full hashes are not repeated here):
 
 ```text
 BLOCO 0: Alice -> Bruno: 10.00, Bruno -> Carlos: 5.00
@@ -424,16 +445,27 @@ Bloco 0 adulterado. Use a opção 5 para validar a blockchain.
 Digite como deseja navegar pelo menu: 5
 Entrando em Validar blockchain...
 Blockchain inválida! Problemas encontrados:
+- Bloco 0: hash não atende à dificuldade (esperado 4 zeros no início).
 - Bloco 1: hash anterior não confere.
 ```
 
-Block 0 is now consistent with its own (new) hash, but block 1 still stores the old hash of block 0 as its previous hash, so the link is broken.
+Two things are detected now. The recalculated hash of block 0 is consistent with its content, but it almost certainly does not start with four zeros, because the old nonce no longer fits the changed content (a random hash starts with four zeros only about 1 time in 65,536). And block 1 still stores the old hash of block 0 as its previous hash, so the link is broken.
 
-Tampering with the last block and recalculating its hash is not detected, because no later block stores its hash. This leads into Scenario 3 and Proof of Work (v0.4).
+Before v0.4, recalculating the hash of the last block was enough to hide the change, because no later block stores its hash. Now even that fails the difficulty check, unless the attacker mines a new nonce, which is what Scenario 3 describes.
 
-### Scenario 3: recalculating every following block (explained only)
+### Scenario 3: mining every following block (explained only)
 
-The program does not simulate this case. An attacker who changes block 0, recalculates its hash, then updates the previous hash of block 1 and recalculates block 1, and so on up to the last block, produces a chain that passes every check, because all hashes and links are consistent again. In this version, validation therefore proves that the chain is internally consistent, not that it is the original one. Making that rewrite expensive is the goal of Proof of Work, planned for v0.4 (it is not implemented yet).
+The program does not simulate this case. To make a changed chain pass every check, the attacker has to change block 0, mine a new nonce for it, update the previous hash of block 1 and mine block 1 again, and so on up to the last block. Every block from the changed one to the end must be mined again, because each of them stores a hash that depends on the block before it.
+
+Mining is the expensive part. For the chain used in these scenarios, option 3 printed these real attempt counts at difficulty 4:
+
+```text
+BLOCO 0: Nonce encontrado: 35429 (35430 tentativas em 0.15 s).
+BLOCO 1: Nonce encontrado: 125866 (125867 tentativas em 0.48 s).
+BLOCO 2: Nonce encontrado: 48957 (48958 tentativas em 0.20 s).
+```
+
+That is 210,255 attempts in total. An attacker who changes block 0 must do this work again for all three blocks (about 210,000 hash calculations or more, since the new nonces will be different), and one who changes block 1 must redo blocks 1 and 2. On average, difficulty 4 needs about 65,536 attempts per block (16 to the power of 4); this is an estimate, and a single block can take much less or much more, as the counts above show. Honest users pay this cost once per block, while an attacker pays it again for every block they want to rewrite. In a real network the attacker would also have to keep up with the other miners that keep adding blocks, which this simulator does not model.
 
 ## Proof of Work
 
@@ -461,6 +493,57 @@ until hash satisfies difficulty
 
 This will provide a simplified introduction to Proof of Work.
 
+### How it works in v0.4
+
+Proof of Work is now implemented. When a block is created (menu option 3), the program mines it: `mine_block` tries `nonce = 0, 1, 2, ...`, hashes the block content together with the nonce, and stops at the first hash that starts with the required number of zeros. The number of attempts is `nonce + 1`. The hash is then stored in the block together with the nonce that produced it.
+
+The difficulty is the number of zeros the hash must start with (in hex digits). The default is 4, so a valid hash looks like `0000edcb...`. Validation (option 5) recalculates every hash and also checks that it meets the difficulty, so anyone can verify a block with one hash calculation, while finding the nonce takes many attempts.
+
+Real output of option 3 at the default difficulty (the menu is omitted):
+
+```text
+Digite como deseja navegar pelo menu: 3
+Entrando em Criar bloco...
+Minerando bloco com dificuldade 4...
+BLOCO 0 criado com sucesso com 2 transações.
+Nonce encontrado: 35429 (35430 tentativas em 0.15 s).
+```
+
+("Minerando bloco" means mining the block, "Nonce encontrado" means nonce found, "tentativas" means attempts.) The time depends on the computer and differs from run to run.
+
+### Changing the difficulty
+
+Menu option 7 ("Alterar dificuldade") sets the difficulty to a number from 0 to 5. It only works while the blockchain is empty, so every block in the chain always has the same difficulty. Difficulty 0 means no Proof of Work: the first nonce (0) is always accepted. Real output, changing the difficulty to 2 on an empty chain, mining a block, and then trying to change it again:
+
+```text
+Digite como deseja navegar pelo menu: 7
+Entrando em Alterar dificuldade...
+Dificuldade atual: 4
+Nova dificuldade (0 a 5): 2
+Dificuldade alterada para 2.
+(menu is shown again)
+Digite como deseja navegar pelo menu: 1
+Entrando em Nova transação...
+Remetente: Alice
+Destinatário: Bruno
+Valor: 10
+Transação adicionada: Alice -> Bruno: 10.00
+(menu is shown again)
+Digite como deseja navegar pelo menu: 3
+Entrando em Criar bloco...
+Minerando bloco com dificuldade 2...
+BLOCO 0 criado com sucesso com 1 transações.
+Nonce encontrado: 126 (127 tentativas em 0.00 s).
+(menu is shown again)
+Digite como deseja navegar pelo menu: 7
+Entrando em Alterar dificuldade...
+A dificuldade só pode ser alterada com a blockchain vazia.
+```
+
+### How the work grows
+
+Each hex digit has 16 possible values, so a random hash starts with N zeros with probability 1 in 16^N. On average, mining needs about 16^N attempts: roughly 256 for N = 2, 4,096 for N = 3 and 65,536 for N = 4. These are averages (estimates); the real count of one block is random. Every extra zero makes mining about 16 times slower on average, but checking a block still takes one hash. That is why the maximum difficulty is limited to 5 in this simulator.
+
 ## Technologies
 
 Current version:
@@ -468,11 +551,12 @@ Current version:
 - Python
 - `hashlib` (SHA-256)
 - `json` (deterministic block serialization)
+- `time` (measuring mining time)
 - `unittest` (tests)
 
 ## Status
 
-Project under development. Version 0.3 is complete: every block has a SHA-256 hash and stores the hash of the previous block, the chain can be validated, and tampering can be simulated and detected. Proof of Work is the next step (v0.4).
+Project under development. Version 0.4 is complete: every block is mined with a simplified Proof of Work (a nonce and a configurable difficulty), stores the hash of the previous block, the chain can be validated (including the difficulty), and tampering can be simulated and detected. Version 1.0, a complete educational blockchain simulator, is the next step.
 
 Current focus:
 
@@ -487,5 +571,7 @@ hashed, linked blocks
     ↓
 chain validation and tampering simulation
     ↓
-Proof of Work (next, v0.4)
+Proof of Work (done, v0.4)
+    ↓
+complete educational simulator (next, v1.0)
 ```
