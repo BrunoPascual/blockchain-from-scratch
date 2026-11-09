@@ -1,6 +1,6 @@
 # Blockchain From Scratch
 
-A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation and tampering!
+A simple blockchain simulator built from scratch in Python to explore transactions, blocks, hashing and chain validation!
 
 ## Objective
 
@@ -385,7 +385,7 @@ The outputs below are real, captured from the program (the menu that is printed 
 
 ### Scenario 1: change without recalculating the hash
 
-The attacker changes the amount of the second transaction in block 0 to 500 and does not recalculate the hash:
+The attacker changes the amount of the first transaction in block 0 (Alice -> Bruno) to 500 and does not recalculate the hash:
 
 ```text
 Digite como deseja navegar pelo menu: 6
@@ -428,6 +428,8 @@ Blockchain inválida! Problemas encontrados:
 ```
 
 Block 0 is now consistent with its own (new) hash, but block 1 still stores the old hash of block 0 as its previous hash, so the link is broken.
+
+Tampering with the last block and recalculating its hash is not detected, because no later block stores its hash. This leads into Scenario 3 and Proof of Work (v0.4).
 
 ### Scenario 3: recalculating every following block (explained only)
 
