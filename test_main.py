@@ -153,7 +153,7 @@ class CreateBlockTests(unittest.TestCase):
 
     def test_create_block_uses_default_difficulty(self):
         block = create_block([], [("Ana", "Bob", 1.0)], DEFAULT_DIFFICULTY)
-        self.assertTrue(block[4].startswith("0" * DEFAULT_DIFFICULTY))
+        self.assertTrue(block[4].startswith("0000"))
 
 
 def build_chain(size, difficulty=0):
@@ -207,11 +207,6 @@ class ValidateChainTests(unittest.TestCase):
         chain = build_chain(2, 2)
         tampered = tamper_block(chain, 0, 0, 99.0, True)
         problems = validate_chain(tampered, 2)
-        self.assertIn("Bloco 1: hash anterior não confere.", problems)
-        # Pick an amount so the recalculated hash for block 0 does not start with "00".
-        self.assertIn(
-            "Bloco 0: hash não atende à dificuldade (esperado 2 zeros no início).",
-            problems)
         self.assertEqual(problems, [
             "Bloco 0: hash não atende à dificuldade (esperado 2 zeros no início).",
             "Bloco 1: hash anterior não confere.",
